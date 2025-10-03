@@ -141,13 +141,6 @@ class RFGame:
             (list): A list of legal actions
         '''
         return self.round.get_legal_actions(self.players, self.round.current_player)
-    
-    def get_action_label(self,code):
-        if '_rt' in code:
-            return 'Replace Track Card '+code[6:]
-        if '_thr' in code:
-            return 'Replace Throne Card'
-        return 'Replace Player Card '+code[5:]
 
     def get_num_players(self):
         ''' Return the number of players in the game

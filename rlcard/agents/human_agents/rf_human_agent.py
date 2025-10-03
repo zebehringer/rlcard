@@ -24,7 +24,7 @@ class HumanAgent(object):
         Returns:
             action (int): The action decided by human
         '''
-        print(state['raw_obs'])
+        #print(state['raw_obs'])
         _print_state(state['raw_obs'], state['action_record'])
         choice = input('>> You choose action (integer): ')
         while True:
@@ -74,14 +74,20 @@ def _print_state(state, action_record):
         trait, suit = card.split('-')
         cards.append((suit+trait).upper())
     print_card(cards)
-    print('')
+    print('================ Throne =================')
+    print_card((state['throne'].suit+state['throne'].trait).upper())
+    print('============ Player Royals ==============')
+    cards = []
+    for i in range(state['num_players']):
+        trait, suit = state['royals'][i].split('-')
+        cards.append((suit+trait).upper())
+    print_card(cards)
+    #print('========== Players Card Number ==========')
+    #for i in range(state['num_players']):
+    #    if i != state['current_player']:
+    #        print('Player {} has {} cards.'.format(i, state['num_cards'][i]))
     print('=============== Last Card ===============')
     RFCard.print_cards(state['target'])
-    print('')
-    print('========== Players Card Number ===========')
-    for i in range(state['num_players']):
-        if i != state['current_player']:
-            print('Player {} has {} cards.'.format(i, state['num_cards'][i]))
     print('======== Actions You Can Choose =========')
     for i, action in enumerate(state['legal_actions']):
         print(str(i)+': ', end='')

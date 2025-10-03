@@ -37,10 +37,8 @@ class RFEnv(Env):
     def _decode_action(self, action_id):
         legal_ids = self._get_legal_actions()
         if action_id in legal_ids:
-            return self.game.get_action_label(self.game.action_space[action_id])
-        # if (len(self.game.dealer.deck) + len(self.game.round.played_cards)) > 17:
-        #    return ACTION_LIST[60]
-        return self.game.get_action_label(self.game.action_space[np.random.choice(legal_ids)])
+            return self.game.action_space[action_id]
+        return self.game.action_space[np.random.choice(legal_ids)]
 
     def _get_legal_actions(self):
         legal_actions = self.game.get_legal_actions()

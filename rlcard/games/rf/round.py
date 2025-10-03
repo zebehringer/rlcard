@@ -29,6 +29,21 @@ class RFRound:
                     continue
                 self.track.append(card)
                 break
+        while True:
+            card = self.dealer.deck.pop()
+            if card.trait == 'k' or card.trait == 'q':
+                self.throne = card
+                break
+            self.played_cards.append(card)
+        for p in players:
+            while True:
+                card = self.dealer.deck.pop()
+                if card.trait == 'k' or card.trait == 'q':
+                    p.royal = card
+                    break
+                self.played_cards.append(card)
+        # TODO re-shuffle now before start?
+        
     
     def flip_top_card(self):
         ''' Flip the top card of the card pile
@@ -78,7 +93,13 @@ class RFRound:
                 self.players[self.current_player].deposit_chip()
                 if 's' in e:
                     self.players[self.current_player].deposit_chip()
-
+        elif '_thr' in action:
+            self.played_cards.append(self.throne)
+            self.throne = self.target
+        elif '_p' in action:
+            pIdx = int(action[5:])
+            self.played_cards.append(self.players[pIdx].royal)
+            self.players[pIdx].royal = self.target
         elif '_d' in action:
             self.played_cards.append(self.target)
 
@@ -115,6 +136,8 @@ class RFRound:
         '''
         state = {}
         player = players[player_id]
+        state['throne'] = self.throne
+        state['royals'] = cards2list([p.royal for p in players])
         state['track'] = cards2list(self.track)
         state['hand'] = cards2list(player.hand)
         state['chips_out'] = player.chips_out
