@@ -63,13 +63,14 @@ class RFRound:
             if card.type == 'action':
                 if card.trait == 's':
                     # there does not seem to be a great way to visualize a skip :(
-                    print('>> Player {} got skipped'.format(self.players[(self.current_player+1) % len(self.players)].player_id))
+                    #print('>> Player {} got skipped'.format(self.players[(self.current_player+1) % len(self.players)].player_id))
                     self.current_player = (self.current_player + 2) % len(self.players)
                     continue
                 elif card.trait == 'a':
                     # there does not seem to be a great way to visualize an ace :(
                     if self.players[self.current_player].deposit_chip():
-                        print('>> Player {} deposited 1 chip'.format(self.players[(self.current_player+1) % len(self.players)].player_id))
+                        None
+                        #print('>> Player {} deposited 1 chip'.format(self.players[(self.current_player+1) % len(self.players)].player_id))
                     self.current_player = (self.current_player + 1) % len(self.players)
                     continue
 

@@ -134,8 +134,12 @@ def print_card(cards):
             rank = elegent_card[1]
             if len(elegent_card) == 3:
                 space = elegent_card[2]
+                l_space = rank
+                l_rank = space
             else:
                 space = ' '
+                l_space = ' '
+                l_rank = rank
 
             lines[0].append('┌─────────┐')
             lines[1].append('│{}{}       │'.format(rank, space))
@@ -144,7 +148,7 @@ def print_card(cards):
             lines[4].append('│    {}    │'.format(suit))
             lines[5].append('│         │')
             lines[6].append('│         │')
-            lines[7].append('│       {}{}│'.format(space, rank))
+            lines[7].append('│       {}{}│'.format(l_space, l_rank))
             lines[8].append('└─────────┘')
 
     for line in lines:

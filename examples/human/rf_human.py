@@ -18,6 +18,8 @@ env.set_agents([
 
 while (True):
     print(">> Start a new game")
+    print(env.state_shape)
+    print(env.action_shape)
 
     trajectories, payoffs = env.run(is_training=False)
     # If the human does not take the final action, we need to
@@ -27,11 +29,11 @@ while (True):
     state = final_state['raw_obs']
     _action_list = []
     for i in range(1, len(action_record)+1):
+        _action_list.insert(0, action_record[-i])
         if action_record[-i][0] == state['current_player']:
             break
-        _action_list.insert(0, action_record[-i])
     for pair in _action_list:
-        print('>> Player', pair[0], 'chooses ', end='')
+        print('>> Player', pair[0], 'chose ', end='')
         _print_action(pair[1])
         print('')
 
