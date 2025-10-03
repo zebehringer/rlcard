@@ -64,7 +64,7 @@ class DoudizhuGame:
             # TODO: don't record game.round, game.players, game.judger if allow_step_back not set
             pass
 
-        # perfrom action
+        # perform action
         player = self.players[self.round.current_player]
         self.round.proceed_round(player, action)
         if (action != 'pass'):

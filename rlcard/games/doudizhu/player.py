@@ -10,7 +10,7 @@ from rlcard.games.doudizhu.utils import cards2str, doudizhu_sort_card
 class DoudizhuPlayer:
     ''' Player can store cards in the player's hand and the role,
     determine the actions can be made according to the rules,
-    and can perfrom corresponding action
+    and can perform corresponding action
     '''
     def __init__(self, player_id, np_random):
         ''' Give the player an id in one game
@@ -76,7 +76,7 @@ class DoudizhuPlayer:
         return actions
 
     def play(self, action, greater_player=None):
-        ''' Perfrom action
+        ''' Perform action
 
         Args:
             action (string): specific action

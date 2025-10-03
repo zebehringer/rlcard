@@ -91,7 +91,7 @@ class UnoRound:
 
         # perform non-number action
         else:
-            self._preform_non_number_action(players, card)
+            self._perform_non_number_action(players, card)
 
     def get_legal_actions(self, players, player_id):
         wild_flag = 0
@@ -114,7 +114,7 @@ class UnoRound:
                 elif card.color == target.color:
                     legal_actions.append(card.str)
 
-        # target is aciton card or number card
+        # target is action card or number card
         else:
             for card in hand:
                 if card.type == 'wild':
@@ -184,14 +184,14 @@ class UnoRound:
                 self.current_player = (self.current_player + self.direction) % self.num_players
             else:
                 self.played_cards.append(card)
-                self._preform_non_number_action(players, card)
+                self._perform_non_number_action(players, card)
 
         # draw a card with the diffrent color of target
         else:
             players[self.current_player].hand.append(card)
             self.current_player = (self.current_player + self.direction) % self.num_players
 
-    def _preform_non_number_action(self, players, card):
+    def _perform_non_number_action(self, players, card):
         current = self.current_player
         direction = self.direction
         num_players = self.num_players
@@ -200,7 +200,7 @@ class UnoRound:
         if card.trait == 'reverse':
             self.direction = -1 * direction
 
-        # perfrom skip card
+        # perform skip card
         elif card.trait == 'skip':
             current = (current + direction) % num_players
 
@@ -214,7 +214,7 @@ class UnoRound:
             self.dealer.deal_cards(players[(current + direction) % num_players], 2)
             current = (current + direction) % num_players
 
-        # perfrom wild_draw_4 card
+        # perform wild_draw_4 card
         elif card.trait == 'wild_draw_4':
             if len(self.dealer.deck) < 4:
                 self.replace_deck()
