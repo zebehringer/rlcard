@@ -26,11 +26,16 @@ class HumanAgent(object):
         '''
         print(state['raw_obs'])
         _print_state(state['raw_obs'], state['action_record'])
-        action = int(input('>> You choose action (integer): '))
-        while action < 0 or action >= len(state['legal_actions']):
+        choice = input('>> You choose action (integer): ')
+        while True:
+            while not choice.isdigit():
+                print('Action illegal...')
+                choice = input('>> Re-choose action (integer): ')
+            action = int(choice)
+            if action >= 0 and action < len(state['legal_actions']):
+                return state['raw_legal_actions'][action]
             print('Action illegal...')
-            action = int(input('>> Re-choose action (integer): '))
-        return state['raw_legal_actions'][action]
+            choice = input('>> Re-choose action (integer): ')
 
     def eval_step(self, state):
         ''' Predict the action given the curent state for evaluation. The same to step here.
