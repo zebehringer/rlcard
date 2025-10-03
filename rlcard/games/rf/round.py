@@ -1,5 +1,6 @@
 from rlcard.games.rf.card import RFCard as Card
-from rlcard.games.rf.utils import cards2list
+from rlcard.games.rf.judger import RFJudger as Judger
+from rlcard.games.rf.utils import cards2list, evaluate_cards
 
 
 class RFRound:
@@ -72,38 +73,22 @@ class RFRound:
             self.played_cards.append(self.track[tIdx])
             self.track[tIdx] = self.target
 
-            if self._is_track_flush():
+            e = evaluate_cards(self.track)
+            if e is not None and 'f' in e:
                 self.players[self.current_player].deposit_chip()
-                if self._is_track_straight():
+                if 's' in e:
                     self.players[self.current_player].deposit_chip()
 
         elif '_d' in action:
             self.played_cards.append(self.target)
 
-        self.flip_top_card()
-        self.current_player = (self.current_player + 1) % len(self.players)
-    
-    def _is_track_flush(self):
-        last_suit = None
-        for card in self.track:
-            if last_suit is not None and card.suit != last_suit:
-                return False
-            last_suit = card.suit
-        return True
-
-    def _is_track_straight(self):
-        ''' assumed that this is called right after _is_track_flush '''
-        ranks = [c.rank for c in self.track]
-        ranks.sort()
-        last_rank = None
-        wild_rank = Card.info['trait'].index('w')
-        for r in ranks:
-            if r == wild_rank:
-                continue
-            if last_rank is not None and r > last_rank+1:
-                return False
-            last_rank = r
-        return True
+        winners = Judger.judge_winner(self.players)
+        if len(winners) > 0:
+            self.winner = winners.pop()
+            self.is_over = True
+        else:
+            self.flip_top_card()
+            self.current_player = (self.current_player + 1) % len(self.players)
 
     def get_legal_actions(self, players, player_id):
         legal_actions = []

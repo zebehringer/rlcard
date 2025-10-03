@@ -2,7 +2,7 @@
 class RFJudger:
 
     @staticmethod
-    def judge_winner(players, np_random):
+    def judge_winner(players):
         ''' Judge the winner of the game
 
         Args:
@@ -12,7 +12,7 @@ class RFJudger:
             (list): The player id of the winner
         '''
         winners = []
-        for idx, item in enumerate(players):
-            if item.chips == 0:
+        for idx, p in enumerate(players):
+            if len(p.chips_in) == 7:
                 winners.append(idx)
         return winners

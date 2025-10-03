@@ -1,19 +1,7 @@
-import os
-import json
 import numpy as np
 from collections import OrderedDict
 
-import rlcard
-
 from rlcard.games.rf.card import RFCard as Card
-
-# Read required docs
-ROOT_PATH = rlcard.__path__[0]
-
-# a map of abstract action to its index and a list of abstract action
-#with open(os.path.join(ROOT_PATH, 'games/rf/jsondata/action_space.json'), 'r') as file:
-#    ACTION_SPACE = json.load(file, object_pairs_hook=OrderedDict)
-#    ACTION_LIST = list(ACTION_SPACE.keys())
 
 # a map of color to its index
 SUIT_MAP = {'s': 0, 'd': 1, 'h': 2, 'c': 3}
@@ -22,8 +10,6 @@ SUIT_MAP = {'s': 0, 'd': 1, 'h': 2, 'c': 3}
 TRAIT_MAP = {'2': 2, '3': 3, '4': 4, '5': 5, '6': 6, '7': 7,
              '8': 8, '9': 9, 'T': 10, 's': 11, 'q': 12, 'k': 13,
              'a': 14, 'w': 15}
-
-WILD = ['w-s', 'w-d', 'w-h', 'w-c']
 
 
 def init_deck():
@@ -47,6 +33,27 @@ def init_deck():
 
     return deck
 
+def evaluate_cards(cards):
+    # check for flush
+    last_suit = None
+    for card in cards:
+        if last_suit is not None and card.suit != last_suit:
+            return 's' if is_straight(cards) else None
+        last_suit = card.suit
+    return 'sf' if is_straight(cards) else f
+
+def is_straight(cards):
+    ranks = [c.rank for c in cards]
+    ranks.sort()
+    last_rank = None
+    wild_rank = Card.info['trait'].index('w')
+    for r in ranks:
+        if r == wild_rank:
+            continue
+        if last_rank is not None and r > last_rank+1:
+            return False
+        last_rank = r
+    return True
 
 def cards2list(cards):
     ''' Get the corresponding string representation of cards
@@ -89,12 +96,10 @@ def encode_hand(plane, hand):
     Returns:
         (array): 3*4*15 numpy array
     '''
-    # plane = np.zeros((3, 4, 15), dtype=int)
     plane[0] = np.ones((4, 288), dtype=int)
     hand = hand2dict(hand)
     for card, count in hand.items():
         card_info = card.split('-')
-        suit = SUIT_MAP[card_info[1]]
         if card == 'a':
             suit = 4
         elif card == 's':
