@@ -40,7 +40,7 @@ def evaluate_cards(cards):
         if last_suit is not None and card.suit != last_suit:
             return 's' if is_straight(cards) else None
         last_suit = card.suit
-    return 'sf' if is_straight(cards) else f
+    return 'sf' if is_straight(cards) else 'f'
 
 def is_straight(cards):
     ranks = [c.rank for c in cards]

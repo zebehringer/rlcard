@@ -129,9 +129,8 @@ class RFGame:
         '''
         # TODO revisit this
         winner = self.round.winner
-        if winner is not None and len(winner) == 1:
-            self.payoffs[winner[0]] = 1
-            self.payoffs[1 - winner[0]] = -1
+        if winner is not None:
+            self.payoffs[winner] = 1
         return self.payoffs
 
     def get_legal_actions(self):

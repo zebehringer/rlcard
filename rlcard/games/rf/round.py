@@ -24,11 +24,11 @@ class RFRound:
         for i in range(5):
             while True:
                 card = self.dealer.deck.pop()
-                if card.str == 'a' or card.str == 's':
-                    self.played_cards.append(card)
-                    continue
-                self.track.append(card)
-                break
+                if card.type == 'number' or card.type == 'wild':
+                    self.track.append(card)
+                    break
+                self.played_cards.append(card)
+        self.replace_deck()
         while True:
             card = self.dealer.deck.pop()
             if card.trait == 'k' or card.trait == 'q':
@@ -42,7 +42,7 @@ class RFRound:
                     p.royal = card
                     break
                 self.played_cards.append(card)
-        # TODO re-shuffle now before start?
+        self.replace_deck()
         
     
     def flip_top_card(self):
