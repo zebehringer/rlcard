@@ -5,8 +5,7 @@ class RFCard:
 
     info = {'type':  ['number', 'royal', 'action', 'wild'],
             'suit': ['s', 'd', 'h', 'c'],
-            'trait': ['2', '3', '4', '5', '6', '7', '8', '9', 'T',
-                      's', 'q', 'k', 'a', 'w']
+            'trait': ['2', '3', '4', '5', '6', '7', '8', '9', 'T', 'q', 'k', 'w', 's', 'a']
             }
 
     def __init__(self, card_type, trait, suit = None):
@@ -21,6 +20,7 @@ class RFCard:
         self.suit = suit
         self.trait = trait
         self.str = self.get_str()
+        self.rank = RFCard.info['trait'].index(str(trait))
 
     def get_str(self):
         ''' Get the string representation of card

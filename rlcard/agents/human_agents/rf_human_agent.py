@@ -1,4 +1,5 @@
 from rlcard.games.rf.card import RFCard
+from rlcard.utils.utils import print_card
 
 class HumanAgent(object):
     ''' A human agent for RF. It can be used to play against trained models
@@ -60,6 +61,14 @@ def _print_state(state, action_record):
 
     print('\n=============== Your Hand ===============')
     RFCard.print_cards(state['hand'])
+    print('\n=============== Your Chips ==============')
+    print('out: {}, in: {}'.format(state['chips_out'],state['chips_in']))
+    print('\n=============== The Track ===============')
+    cards = []
+    for card in state['track']:
+        trait, suit = card.split('-')
+        cards.append((suit+trait).upper())
+    print_card(cards)
     print('')
     print('=============== Last Card ===============')
     RFCard.print_cards(state['target'])

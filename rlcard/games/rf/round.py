@@ -1,24 +1,33 @@
-from rlcard.games.rf.card import RFCard
+from rlcard.games.rf.card import RFCard as Card
 from rlcard.games.rf.utils import cards2list
 
 
 class RFRound:
 
-    def __init__(self, dealer, num_players, np_random):
+    def __init__(self, dealer, players, np_random):
         ''' Initialize the round class
 
         Args:
             dealer (object): the object of RFDealer
-            num_players (int): the number of players in game
+            players (array): the players in game
         '''
         self.np_random = np_random
         self.dealer = dealer
         self.target = None
         self.current_player = 0
-        self.num_players = num_players
+        self.players = players
         self.played_cards = []
         self.is_over = False
         self.winner = None
+        self.track = []
+        for i in range(5):
+            while True:
+                card = self.dealer.deck.pop()
+                if card.str == 'a' or card.str == 's':
+                    self.played_cards.append(card)
+                    continue
+                self.track.append(card)
+                break
     
     def flip_top_card(self):
         ''' Flip the top card of the card pile
@@ -37,13 +46,15 @@ class RFRound:
 
             if card.type == 'action':
                 if card.trait == 's':
-                    # there does not seem to be a way to visualize a skip :(
-                    self.current_player = (self.current_player + 2) % self.num_players
+                    # there does not seem to be a great way to visualize a skip :(
+                    print('>> Player {} got skipped'.format(self.players[(self.current_player+1) % len(self.players)].player_id))
+                    self.current_player = (self.current_player + 2) % len(self.players)
                     continue
                 elif card.trait == 'a':
-                    # there does not seem to be a way to visualize an ace :(
-                    #self.current_player.deposit_chip()
-                    self.current_player = (self.current_player + 1) % self.num_players
+                    # there does not seem to be a great way to visualize an ace :(
+                    if self.players[self.current_player].deposit_chip():
+                        print('>> Player {} deposited 1 chip'.format(self.players[(self.current_player+1) % len(self.players)].player_id))
+                    self.current_player = (self.current_player + 1) % len(self.players)
                     continue
 
             break
@@ -56,8 +67,43 @@ class RFRound:
             player (object): object of RFPlayer
             action (str): string of legal action
         '''
+        if '_rt' in action:
+            tIdx = int(action[6:])
+            self.played_cards.append(self.track[tIdx])
+            self.track[tIdx] = self.target
+
+            if self._is_track_flush():
+                self.players[self.current_player].deposit_chip()
+                if self._is_track_straight():
+                    self.players[self.current_player].deposit_chip()
+
+        elif '_d' in action:
+            self.played_cards.append(self.target)
+
         self.flip_top_card()
-        self.current_player = (self.current_player + 1) % self.num_players
+        self.current_player = (self.current_player + 1) % len(self.players)
+    
+    def _is_track_flush(self):
+        last_suit = None
+        for card in self.track:
+            if last_suit is not None and card.suit != last_suit:
+                return False
+            last_suit = card.suit
+        return True
+
+    def _is_track_straight(self):
+        ''' assumed that this is called right after _is_track_flush '''
+        ranks = [c.rank for c in self.track]
+        ranks.sort()
+        last_rank = None
+        wild_rank = Card.info['trait'].index('w')
+        for r in ranks:
+            if r == wild_rank:
+                continue
+            if last_rank is not None and r > last_rank+1:
+                return False
+            last_rank = r
+        return True
 
     def get_legal_actions(self, players, player_id):
         legal_actions = []
@@ -84,7 +130,10 @@ class RFRound:
         '''
         state = {}
         player = players[player_id]
+        state['track'] = cards2list(self.track)
         state['hand'] = cards2list(player.hand)
+        state['chips_out'] = player.chips_out
+        state['chips_in'] = player.count_chips(player.chips_in)
         state['target'] = '' if self.target == None else self.target.str
         state['played_cards'] = cards2list(self.played_cards)
         state['legal_actions'] = self.get_legal_actions(players, player_id)

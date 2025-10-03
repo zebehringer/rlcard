@@ -57,6 +57,7 @@ class RFEnv(Env):
         state['num_players'] = self.num_players
         state['hand_cards'] = [cards2list(player.hand)
                                for player in self.game.players]
+        state['track'] = cards2list(self.game.round.track)
         state['played_cards'] = cards2list(self.game.round.played_cards)
         state['target'] = self.game.round.target.str
         state['current_player'] = self.game.round.current_player

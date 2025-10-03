@@ -62,7 +62,7 @@ class RFGame:
         self.history = []
 
         # Initialize a Round
-        self.round = Round(self.dealer, self.num_players, self.np_random)
+        self.round = Round(self.dealer, self.players, self.np_random)
 
         # flip and perform top card
         self.round.flip_top_card()
