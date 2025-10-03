@@ -7,9 +7,9 @@ from rlcard.games.rf.card import RFCard as Card
 SUIT_MAP = {'s': 0, 'd': 1, 'h': 2, 'c': 3}
 
 # a map of trait to its index
-TRAIT_MAP = {'2': 2, '3': 3, '4': 4, '5': 5, '6': 6, '7': 7,
-             '8': 8, '9': 9, 'T': 10, 's': 11, 'q': 12, 'k': 13,
-             'a': 14, 'w': 15}
+TRAIT_MAP = {'2': 0, '3': 1, '4': 2, '5': 3, '6': 4, '7': 5,
+             '8': 6, '9': 7, 'T': 8, 'q': 9, 'k': 10, 'w': 11,
+             'a': 12, 's': 13}
 
 
 def init_deck():
@@ -87,7 +87,7 @@ def hand2dict(hand):
     return hand_dict
 
 def encode_hand(plane, hand):
-    ''' Encode hand and represerve it into plane
+    ''' Encode hand and preserve it into plane
 
     Args:
         plane (array): 3*4*15 numpy array
@@ -118,14 +118,11 @@ def encode_hand(plane, hand):
     return plane
 
 def encode_target(plane, target):
-    ''' Encode target and represerve it into plane
+    ''' Encode target and preserve it into plane
 
     Args:
-        plane (array):
+        plane (array): 4*12 matrix for all playable cards
         target(str): string of target card
-
-    Returns:
-        (array): 4*4*288 numpy array
     '''
     target_info = target.split('-')
     if target == 'a' or target == 's':
@@ -133,4 +130,7 @@ def encode_target(plane, target):
     suit = SUIT_MAP[target_info[1]]
     trait = TRAIT_MAP[target_info[0]]
     plane[suit][trait] = 1
-    return plane
+
+def encode_chips(plane, chips):
+    for i in range(len(chips)):
+        plane[i] = 1

@@ -138,6 +138,7 @@ class RFRound:
         player = players[player_id]
         state['throne'] = self.throne
         state['royals'] = cards2list([p.royal for p in players])
+        state['player_royal'] = player.royal.str
         state['track'] = cards2list(self.track)
         state['hand'] = cards2list(player.hand)
         state['chips_out'] = player.chips_out
