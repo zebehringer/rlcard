@@ -27,10 +27,27 @@ class RFRound:
             (object of RFCard): the top card in game
 
         '''
-        top = self.dealer.flip_top_card()
-        self.target = top
-        self.played_cards.append(top)
-        return top
+        while True:
+            if not self.dealer.deck:
+                self.replace_deck()
+    
+            card = self.dealer.deck.pop()
+            self.target = card
+            self.played_cards.append(card)
+
+            if card.type == 'action':
+                if card.trait == 's':
+                    # there does not seem to be a way to visualize a skip :(
+                    self.current_player = (self.current_player + 2) % self.num_players
+                    continue
+                elif card.trait == 'a':
+                    # there does not seem to be a way to visualize an ace :(
+                    #self.current_player.deposit_chip()
+                    self.current_player = (self.current_player + 1) % self.num_players
+                    continue
+
+            break
+        return card
 
     def proceed_round(self, players, action):
         ''' Call other Classes' functions to keep one round running
@@ -38,31 +55,9 @@ class RFRound:
         Args:
             player (object): object of RFPlayer
             action (str): string of legal action
-        '''    
+        '''
+        self.flip_top_card()
         self.current_player = (self.current_player + 1) % self.num_players
-
-        # replace deck if there is no card in draw pile
-        if not self.dealer.deck:
-            self.replace_deck()
-            #self.is_over = True
-            #self.winner = RFJudger.judge_winner(players)
-            #return None
-
-        while True:
-            card = self.dealer.deck.pop()
-            self.target = card
-            self.played_cards.append(card)
-
-            if card.type == 'action':
-                if card.trait == 's':
-                    self.current_player = (self.current_player + 2) % self.num_players
-                    continue
-                elif card.trait == 'a':
-                    #self.current_player.deposit_chip()
-                    self.current_player = (self.current_player + 1) % self.num_players
-                    continue
-
-            break
 
     def get_legal_actions(self, players, player_id):
         legal_actions = []

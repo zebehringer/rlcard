@@ -20,7 +20,7 @@ SUIT_MAP = {'s': 0, 'd': 1, 'h': 2, 'c': 3}
 
 # a map of trait to its index
 TRAIT_MAP = {'2': 2, '3': 3, '4': 4, '5': 5, '6': 6, '7': 7,
-             '8': 8, '9': 9, '10': 10, 'skip': 11, 'q': 12, 'k': 13,
+             '8': 8, '9': 9, 'T': 10, 's': 11, 'q': 12, 'k': 13,
              'a': 14, 'w': 15}
 
 WILD = ['w-s', 'w-d', 'w-h', 'w-c']
@@ -37,8 +37,9 @@ def init_deck():
     deck.append(Card('action','a'))
     for suit in card_info['suit']:
         # init number cards
-        for num in range(2,11):
+        for num in range(2,10):
             deck.append(Card('number', num, suit))
+        deck.append(Card('number', 'T', suit))
         
         deck.append(Card('royal', 'q', suit))
         deck.append(Card('royal', 'k', suit))

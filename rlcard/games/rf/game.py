@@ -58,14 +58,14 @@ class RFGame:
         #for player in self.players:
         #    self.dealer.deal_cards(player, 7)
 
+        # Save the hisory for stepping back to the last state.
+        self.history = []
+
         # Initialize a Round
         self.round = Round(self.dealer, self.num_players, self.np_random)
 
         # flip and perform top card
         self.round.flip_top_card()
-
-        # Save the hisory for stepping back to the last state.
-        self.history = []
 
         player_id = self.round.current_player
         state = self.get_state(player_id)

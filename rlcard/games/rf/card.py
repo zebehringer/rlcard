@@ -1,10 +1,11 @@
 from termcolor import colored
+from rlcard.utils.utils import print_card
 
 class RFCard:
 
     info = {'type':  ['number', 'royal', 'action', 'wild'],
             'suit': ['s', 'd', 'h', 'c'],
-            'trait': ['2', '3', '4', '5', '6', '7', '8', '9', '10',
+            'trait': ['2', '3', '4', '5', '6', '7', '8', '9', 'T',
                       's', 'q', 'k', 'a', 'w']
             }
 
@@ -56,24 +57,10 @@ class RFCard:
         if isinstance(cards, str):
             cards = [cards]
         for i, card in enumerate(cards):
-            trait, suit = card.split('-')
-            if trait == 's':
-                trait = 'Skip'
-            elif trait == 'a':
-                trait = 'Ace'
-            elif trait == 'q':
-                trait = 'Queen'
-            elif trait == 'k':
-                trait = 'King'
-            elif trait == 'w':
-                trait = 'Wild'
-
-            if trait == 'Ace' or trait == 'Skip':
-                print(trait, end='')
-            elif suit == 'h' or suit == 'd':
-                print(colored(trait, 'red'), end='')
+            if card == 's':
+                print('---Skip---', end='')
+            elif card == 'a':
+                print('---Ace in the hole---', end='')            
             else:
-                print(colored(trait, 'white'), end='')
-
-            if i < len(cards) - 1:
-                print(', ', end='')
+                trait, suit = card.split('-')
+                print_card((suit+trait).upper())
