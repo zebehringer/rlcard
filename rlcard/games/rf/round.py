@@ -58,9 +58,10 @@ class RFRound:
     
             card = self.dealer.deck.pop()
             self.target = card
-            self.played_cards.append(card)
 
             if card.type == 'action':
+                # other cards go to the pile once the player decides where they go
+                self.played_cards.append(card)
                 if card.trait == 's':
                     # there does not seem to be a great way to visualize a skip :(
                     #print('>> Player {} got skipped'.format(self.players[self.current_player].player_id))
@@ -69,8 +70,9 @@ class RFRound:
                 elif card.trait == 'a':
                     # there does not seem to be a great way to visualize an ace :(
                     if self.players[self.current_player].deposit_chip():
-                        None
                         #print('>> Player {} deposited 1 chip'.format(self.players[self.current_player].player_id))
+                        if self.check_winner():
+                            break
                     self.current_player = (self.current_player + 1) % len(self.players)
                     continue
 
@@ -104,13 +106,21 @@ class RFRound:
         elif '_d' in action:
             self.played_cards.append(self.target)
 
+        if not self.check_winner():
+            self.current_player = (self.current_player + 1) % len(self.players)
+            self.flip_top_card()
+
+    def check_winner(self):
+        ''' End the game if any player has deposited all of their chips
+
+        Returns:
+            (bool): True if the game is over
+        '''
         winners = Judger.judge_winner(self.players)
         if len(winners) > 0:
             self.winner = winners.pop()
             self.is_over = True
-        else:
-            self.current_player = (self.current_player + 1) % len(self.players)
-            self.flip_top_card()
+        return self.is_over
 
     def get_legal_actions(self, players, player_id):
         legal_actions = []
