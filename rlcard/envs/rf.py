@@ -34,7 +34,7 @@ class RFEnv(Env):
         #for i,player in enumerate(self.game.players):
         #    encode_target(obs[8+self.num_players+i], player.royal.str)
 
-        legal_action_id = self._get_legal_actions()
+        legal_action_id = self._get_legal_actions(state['legal_actions'])
         extracted_state = {
             'obs': obs,
             'legal_actions': legal_action_id,
@@ -53,9 +53,10 @@ class RFEnv(Env):
             return self.game.action_space[action_id]
         return self.game.action_space[np.random.choice(legal_ids)]
 
-    def _get_legal_actions(self):
-        legal_actions = self.game.get_legal_actions()
-        legal_ids = {self.game.action_space.index(action): None for action in legal_actions}
+    def _get_legal_actions(self, legal_actions=None):
+        if legal_actions is None:
+            legal_actions = self.game.get_legal_actions()
+        legal_ids = {self.game.action_ids[action]: None for action in legal_actions}
         return OrderedDict(legal_ids)
 
     def get_perfect_information(self):

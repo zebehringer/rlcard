@@ -59,10 +59,7 @@ def cards2list(cards):
     Returns:
         (string): string representation of cards
     '''
-    cards_list = []
-    for card in cards:
-        cards_list.append(card.get_str())
-    return cards_list
+    return [card.str for card in cards]
 
 def encode_target(plane, target):
     ''' Encode target and preserve it into plane

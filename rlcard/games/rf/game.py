@@ -36,6 +36,7 @@ class RFGame:
                     action_space.append(card.str+'_p'+str(p))
                 action_space.append(card.str+'_d')
         self.action_space = action_space
+        self.action_ids = {action: i for i, action in enumerate(action_space)}
 
     def configure(self, game_config):
         ''' Specifiy some game specific parameters, such as number of players
