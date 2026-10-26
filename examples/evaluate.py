@@ -34,8 +34,12 @@ def load_model(model_path, env=None, position=None, device=None):
 
 def evaluate(args):
 
-    # Check whether gpu is available
-    device = get_device()
+    # Use the requested device, otherwise check whether gpu is available
+    if args.device:
+        import torch
+        device = torch.device(args.device)
+    else:
+        device = get_device()
         
     # Seed numpy, torch, random
     set_seed(args.seed)
@@ -84,6 +88,12 @@ if __name__ == '__main__':
         '--cuda',
         type=str,
         default='',
+    )
+    parser.add_argument(
+        '--device',
+        type=str,
+        default='',
+        help='Device to run models on, e.g. cpu (default: GPU if available)',
     )
     parser.add_argument(
         '--seed',
