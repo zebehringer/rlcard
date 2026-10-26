@@ -9,6 +9,9 @@ from rlcard.games.rf.utils import init_deck
 
 class RFGame:
 
+    MIN_PLAYERS = 2
+    MAX_PLAYERS = 5
+
     def __init__(self, allow_step_back=False, num_players=4):
         self.allow_step_back = allow_step_back
         self.np_random = np.random.RandomState()
@@ -16,8 +19,11 @@ class RFGame:
         self.payoffs = [0 for _ in range(self.num_players)]
 
         self.cards = init_deck()
+        self.init_action_space()
 
-        # Initialize action space
+    def init_action_space(self):
+        ''' Build the action space, which depends on the number of players
+        '''
         action_space = []
         for card in self.cards:
             if card.type == 'wild' or card.type == 'number':
@@ -34,7 +40,12 @@ class RFGame:
     def configure(self, game_config):
         ''' Specifiy some game specific parameters, such as number of players
         '''
-        self.num_players = game_config['game_num_players']
+        num_players = game_config['game_num_players']
+        if not RFGame.MIN_PLAYERS <= num_players <= RFGame.MAX_PLAYERS:
+            raise ValueError('rf supports {}-{} players, got {}'.format(
+                RFGame.MIN_PLAYERS, RFGame.MAX_PLAYERS, num_players))
+        self.num_players = num_players
+        self.init_action_space()
 
     def init_game(self):
         ''' Initialize players and state
