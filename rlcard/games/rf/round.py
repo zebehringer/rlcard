@@ -154,6 +154,9 @@ class RFRound:
         state['hand'] = cards2list(player.hand)
         state['chips_out'] = player.chips_out
         state['chips_in'] = player.count_chips(player.chips_in)
+        # chips in for every player, starting with this player and going in turn order
+        seats = [players[(player_id + i) % len(players)] for i in range(len(players))]
+        state['seat_chips_in'] = [p.count_chips(p.chips_in) for p in seats]
         state['target'] = '' if self.target == None else self.target.str
         state['played_cards'] = cards2list(self.played_cards)
         state['legal_actions'] = self.get_legal_actions(players, player_id)

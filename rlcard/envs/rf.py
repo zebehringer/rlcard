@@ -3,7 +3,7 @@ from collections import OrderedDict
 
 from rlcard.envs import Env
 from rlcard.games.rf import Game
-from rlcard.games.rf.utils import encode_hand, encode_target, encode_chips
+from rlcard.games.rf.utils import encode_target, encode_chips
 from rlcard.games.rf.utils import cards2list
 
 DEFAULT_GAME_CONFIG = {
@@ -17,7 +17,8 @@ class RFEnv(Env):
         self.default_game_config = DEFAULT_GAME_CONFIG
         self.game = Game()
         super().__init__(config)
-        self.num_planes = 8 # or if including all player royals in each player encoding: 7 + self.num_players # + self.num_players if encoding chips
+        # target, throne, own royal, 5 track slots, then chips in for each player by seat
+        self.num_planes = 8 + self.num_players
         self.state_shape = [[self.num_planes, 4, 12] for _ in range(self.num_players)]
         self.action_shape = [None for _ in range(self.num_players)]
 
@@ -28,14 +29,11 @@ class RFEnv(Env):
         encode_target(obs[2], state['player_royal'])
         for i,card in enumerate(state['track']):
             encode_target(obs[3+i], card)
+        for i,count in enumerate(state['seat_chips_in']):
+            encode_chips(obs[8+i], count)
         #for i,player in enumerate(self.game.players):
-        #    encode_target(obs[7+i], player.royal.str)
-            # chips are just a byproduct of card choices, not necessarily a choice in themself
-            #encode_chips(obs[7+self.num_players+i], player.chips_in)
-        
-        #obs = np.zeros((4, 4, 288), dtype=int)
-        #encode_hand(obs[:3], state['hand'])
-        #encode_target(obs[3], state['target'])
+        #    encode_target(obs[8+self.num_players+i], player.royal.str)
+
         legal_action_id = self._get_legal_actions()
         extracted_state = {
             'obs': obs,

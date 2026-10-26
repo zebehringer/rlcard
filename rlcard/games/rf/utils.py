@@ -1,6 +1,3 @@
-import numpy as np
-from collections import OrderedDict
-
 from rlcard.games.rf.card import RFCard as Card
 
 # a map of color to its index
@@ -67,54 +64,6 @@ def cards2list(cards):
         cards_list.append(card.get_str())
     return cards_list
 
-def hand2dict(hand):
-    ''' Get the corresponding dict representation of hand
-
-    Args:
-        hand (list): list of string of hand's card
-
-    Returns:
-        (dict): dict of hand
-    '''
-    hand_dict = {}
-    for card in hand:
-        if card not in hand_dict:
-            hand_dict[card] = 1
-        else:
-            hand_dict[card] += 1
-    return hand_dict
-
-def encode_hand(plane, hand):
-    ''' Encode hand and preserve it into plane
-
-    Args:
-        plane (array): 3*4*15 numpy array
-        hand (list): list of string of hand's card
-
-    Returns:
-        (array): 3*4*15 numpy array
-    '''
-    plane[0] = np.ones((4, 288), dtype=int)
-    hand = hand2dict(hand)
-    for card, count in hand.items():
-        card_info = card.split('-')
-        if card == 'a':
-            suit = 4
-        elif card == 's':
-            suit = 5
-        else:
-            suit = SUIT_MAP[card_info[1]]
-        trait = TRAIT_MAP[card_info[0]]
-        if trait >= 13:
-            if plane[1][0][trait] == 0:
-                for index in range(4):
-                    plane[0][index][trait] = 0
-                    plane[1][index][trait] = 1
-        else:
-            plane[0][suit][trait] = 0
-            plane[count][suit][trait] = 1
-    return plane
-
 def encode_target(plane, target):
     ''' Encode target and preserve it into plane
 
@@ -129,6 +78,11 @@ def encode_target(plane, target):
     trait = TRAIT_MAP[target_info[0]]
     plane[suit][trait] = 1
 
-def encode_chips(plane, chips):
-    for i in range(len(chips)):
-        plane[i] = 1
+def encode_chips(plane, count):
+    ''' Encode a chip count into plane by filling its first count cells
+
+    Args:
+        plane (array): 4*12 matrix
+        count (int): number of chips
+    '''
+    plane.flat[:count] = 1
