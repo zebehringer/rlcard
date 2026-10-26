@@ -43,17 +43,15 @@ def evaluate_cards(cards):
     return 'sf' if is_straight(cards) else 'f'
 
 def is_straight(cards):
-    ranks = [c.rank for c in cards]
-    ranks.sort()
-    last_rank = None
+    # wilds can stand in for any rank, so the remaining ranks just need to be
+    # distinct and fit within a run as long as the hand
     wild_rank = Card.info['trait'].index('w')
-    for r in ranks:
-        if r == wild_rank:
-            continue
-        if last_rank is not None and r > last_rank+1:
-            return False
-        last_rank = r
-    return True
+    ranks = [c.rank for c in cards if c.rank != wild_rank]
+    if len(set(ranks)) != len(ranks):
+        return False
+    if not ranks:
+        return True
+    return max(ranks) - min(ranks) < len(cards)
 
 def cards2list(cards):
     ''' Get the corresponding string representation of cards
