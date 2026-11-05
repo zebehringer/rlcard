@@ -99,10 +99,14 @@ class RFRound:
         elif '_thr' in action:
             self.played_cards.append(self.throne)
             self.throne = self.target
+            if self.target.trait == 'k':
+                self.apply_king(self.target.suit, None)
         elif '_p' in action:
             pIdx = int(action[5:])
             self.played_cards.append(self.players[pIdx].royal)
             self.players[pIdx].royal = self.target
+            if self.target.trait == 'k':
+                self.apply_king(self.target.suit, pIdx)
         elif '_d' in action:
             self.played_cards.append(self.target)
 
@@ -110,8 +114,65 @@ class RFRound:
             self.current_player = (self.current_player + 1) % len(self.players)
             self.flip_top_card()
 
+    def apply_king(self, suit, pIdx):
+        ''' Apply the one-time effect of a king that was just placed
+
+        Args:
+            suit (str): the king's suit
+            pIdx (int): the player the king was placed in front of, or None for the throne
+        '''
+        players = self.players
+        n = len(players)
+        placer = self.current_player
+        # on the throne the effect applies to everyone; KD skips the player who placed it
+        if pIdx is not None:
+            affected = [pIdx]
+        elif suit == 'd':
+            affected = [i for i in range(n) if i != placer]
+        else:
+            affected = list(range(n))
+
+        if suit == 'd':
+            for i in affected:
+                self.retrieve_chip(i)
+        else:
+            gifts = []
+            for i in affected:
+                if suit == 's':
+                    others = [j for j in range(n) if j != i]
+                    to = others[self.np_random.randint(len(others))]
+                elif suit == 'c':
+                    # play passes to the left, so the next player in turn order is on the left
+                    to = (i + 1) % n
+                else:
+                    to = (i - 1) % n
+                chip = players[i].pick_chip_to_give()
+                if chip is not None:
+                    gifts.append((i, to, chip))
+            # everyone gives at the same time, so a chip received can't be passed on
+            for i, to, chip in gifts:
+                players[i].chips_out.remove(chip)
+            for i, to, chip in gifts:
+                players[to].chips_out.append(chip)
+
+        # KD in front of an opponent: the placer also moves one of their own chips
+        # from that opponent's cup into the pot
+        if suit == 'd' and pIdx is not None and pIdx != placer:
+            players[placer].take_back_chip(players[pIdx], to_pot=True)
+
+    def retrieve_chip(self, pIdx):
+        ''' Return one of a player's chips from a random other cup to their own cup
+
+        Args:
+            pIdx (int): the player retrieving a chip
+        '''
+        p = self.players[pIdx]
+        holders = [o for o in self.players if o is not p and p.player_id in o.chips_out]
+        if holders:
+            p.take_back_chip(holders[self.np_random.randint(len(holders))])
+
     def check_winner(self):
-        ''' End the game if any player has deposited all of their chips
+        ''' End the game if any player's cup is empty
 
         Returns:
             (bool): True if the game is over
@@ -152,11 +213,12 @@ class RFRound:
         state['player_royal'] = player.royal.str
         state['track'] = cards2list(self.track)
         state['hand'] = cards2list(player.hand)
-        state['chips_out'] = player.chips_out
-        state['chips_in'] = player.count_chips(player.chips_in)
-        # chips in for every player, starting with this player and going in turn order
+        # chips left in this player's cup, by owner id, and the number they deposited
+        state['chips_out'] = list(player.chips_out)
+        state['chips_in'] = len(player.chips_in)
+        # chips left in every player's cup, starting with this player and going in turn order
         seats = [players[(player_id + i) % len(players)] for i in range(len(players))]
-        state['seat_chips_in'] = [p.count_chips(p.chips_in) for p in seats]
+        state['seat_chips_out'] = [len(p.chips_out) for p in seats]
         state['target'] = '' if self.target == None else self.target.str
         state['played_cards'] = cards2list(self.played_cards)
         state['legal_actions'] = self.get_legal_actions(players, player_id)

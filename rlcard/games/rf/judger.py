@@ -13,6 +13,6 @@ class RFJudger:
         '''
         winners = []
         for idx, p in enumerate(players):
-            if len(p.chips_in) == 7:
+            if not p.chips_out:
                 winners.append(idx)
         return winners

@@ -67,7 +67,7 @@ def _print_state(state, action_record):
     print('\n=============== Your Hand ===============')
     RFCard.print_cards(state['hand'])
     print('\n=============== Your Chips ==============')
-    print('out: {}, in: {}'.format(state['chips_out'],state['chips_in']))
+    print('cup: {}, deposited: {}'.format(state['chips_out'],state['chips_in']))
     print('\n=============== The Track ===============')
     cards = []
     for card in state['track']:

@@ -1,8 +1,8 @@
 # RF
 
-RF is a custom card game added to RLCard. Players take turns flipping one shared card and deciding where it goes. Making the 5-card **track** a flush earns chips, and the **first player to deposit all 7 of their chips wins**.
+RF is a custom card game added to RLCard. Players take turns flipping one shared card and deciding where it goes. Making the 5-card **track** a flush lets you deposit chips, and the **first player to empty their cup wins**.
 
-The game is a work in progress. The throne and royals can be placed but have no effect yet (see [Planned changes](#planned-changes)).
+The game is a work in progress (see [Planned changes](#planned-changes)).
 
 ## Rules
 
@@ -23,21 +23,21 @@ Cards are written as `<trait>-<suit>`, for example `7-h`, `T-s`, `k-d` or `w-c`.
 - **Throne:** one royal.
 - **Each player:** one royal.
 
-Cards skipped during setup are shuffled back into the deck. Each player starts with 7 chips out and 0 in. Player hands exist in the code but are never dealt.
+Cards skipped during setup are shuffled back into the deck. Each player starts with their own 7 chips in their cup (`chips_out`). Depositing moves one of your own chips from your cup into the shared pot (`chips_in` records the chips you deposited). Every chip remembers its owner, and kings can move chips between cups. Player hands exist in the code but are never dealt.
 
 ### A turn
 
 1. **Flip.** The top card becomes the `target`.
    - **Skip:** the current player loses their turn; play passes on and the game flips again.
-   - **Ace:** the current player deposits a chip, play passes on, and the game flips again. If that was their 7th chip, the game ends immediately.
+   - **Ace:** the current player deposits a chip, play passes on, and the game flips again. If that empties their cup, the game ends immediately.
 2. **Decide.** The current player chooses what to do with the target:
    - **Number or wild:** replace track slot 0–4, or discard.
-   - **Royal:** replace the throne, replace any player's royal (including their own), or discard.
+   - **Royal:** replace the throne, replace any player's royal (including their own), or discard. Placing a king triggers its effect (see [Royal effects](#royal-effects)).
 3. **Score.** After a track replacement:
-   - **Flush (all 5 the same suit):** +1 chip.
-   - **Straight flush:** +2 chips.
+   - **Flush (all 5 the same suit):** deposit 1 chip.
+   - **Straight flush:** deposit 2 chips.
    - **Plain straight:** nothing.
-4. **Win check.** A player with 7 chips in wins. Otherwise play passes to the next player and a new card is flipped.
+4. **Win check.** A player with an empty cup wins. After a king the winner may not be the current player. If several cups empty at once, the highest seat wins (`judger.py` returns them in seat order and `check_winner` takes the last). Otherwise play passes to the next player and a new card is flipped.
 
 Straights: wilds fill gaps (`2 3 w 5 6` counts), ranks can't repeat, and T sits above 9. A flush that stays on the track pays out again to every player who keeps it a flush. That's intended for now; the royal rules are expected to change it.
 
@@ -45,15 +45,52 @@ Straights: wilds fill gaps (`2 3 w 5 6` counts), ranks can't repeat, and T sits 
 
 **Players:** 2–5, default 4. Other counts raise a `ValueError` from `RFGame.configure()`.
 
+### Royal effects
+
+> **Kings are implemented. Queens are not yet:** they can be placed but do nothing.
+
+Each of the 8 royals is placed either in front of a player or on the throne, where it applies to everyone. Kings have a one-time effect when placed. Queens have an ongoing effect while they stay in place. Royals dealt during setup have no effect.
+
+**Kings (one-time, `RFRound.apply_king`):**
+
+| Card | In front of a player | On the throne |
+|---|---|---|
+| `k-s` | The player gives a chip to a random player | Everyone gives a chip to a random player |
+| `k-c` | The player gives a chip to the player on their left | Everyone gives a chip to the player on their left |
+| `k-h` | The player gives a chip to the player on their right | Everyone gives a chip to the player on their right |
+| `k-d` | The player takes 1 of their chips out of any cup other than their own and returns it to theirs (nothing if they can't). If they place it on an opponent's spot, they can also take one of their chips from that opponent's cup and put it into the pot | Everyone else takes 1 of their chips out of any cup and returns it to their own (nothing if they can't) |
+
+How the code reads the king rules:
+- "The player" is the one the king is placed in front of. On the throne, "everyone else" (`k-d`) means everyone except the player who placed it.
+- Giving a chip moves a chip from your cup into the other player's cup, so it brings you closer to winning. Other players' chips go first, since you can't deposit them. With an empty cup you give nothing. On the throne, everyone gives at once, so a chip you just received can't be passed on.
+- Left is the next player in turn order and right is the previous one. A random player is never the giver themselves.
+- `k-d` takes the chip back from a random cup that holds one, which is a penalty for whoever takes it back. In the opponent case, the placer's chip goes straight into the pot as a deposit. It is taken after the opponent's chip comes back.
+
+**Queens (ongoing):**
+
+| Card | In front of a player | On the throne |
+|---|---|---|
+| `q-s` | The player can't deposit chips | No one can deposit chips |
+| `q-c` | The player can deposit 1 extra chip per turn | Every player can deposit 1 extra chip per turn |
+| `q-d` | The player draws an extra card per turn but still plays only 1 and holds the other | Every player draws an extra card per turn but still plays only 1 and holds the other |
+| `q-h` | The player can draw the top card of the discard pile instead of the draw pile | Every player can draw the top card of the discard pile instead of the draw pile |
+
+Open questions:
+- **TODO:** Decide whether the player who draws a royal can put it in front of another player, or only in front of themselves. The code currently allows any player.
+- **TODO (after queens are implemented):** Decide whether a player can deposit other players' chips from their cup. For now only your own chips can be deposited, so other players' chips can only leave your cup through a king. In 2,000 random games none got stuck, but queens like `q-s` may change that. If other players' chips become depositable, also decide which chip goes first, since there's no action for choosing.
+- Should a player choose which cup `k-d` takes from, and who `k-s` gives to? Both are random for now, because there are no actions for those choices.
+- Does a throne royal act on its own, or in combination with the state of the track?
+- With `q-d`, can the player play both cards instead of holding one?
+
 ## Code layout
 
 | File | Contents |
 |---|---|
 | `card.py` | `RFCard` (type, suit, trait, cached `str`, `rank`) and the console printing used by the human agent |
 | `dealer.py` | Shuffles and deals from the deck |
-| `player.py` | Chips (`chips_out`, `chips_in`, `deposit_chip`), royal, an unused `hand` |
-| `round.py` | Setup, `flip_top_card` (Skip and Ace), `proceed_round` (applies an action), `check_winner`, `get_state` |
-| `judger.py` | Winner = any player with 7 chips in |
+| `player.py` | Chips (`chips_out` = cup, `chips_in` = deposited, `deposit_chip`, `pick_chip_to_give`, `take_back_chip`), royal, an unused `hand` |
+| `round.py` | Setup, `flip_top_card` (Skip and Ace), `proceed_round` (applies an action), `apply_king` / `retrieve_chip`, `check_winner`, `get_state` |
+| `judger.py` | Winner = any player with an empty cup |
 | `game.py` | `RFGame`: action space, `configure`, step and step back, payoffs, player limits |
 | `utils.py` | `init_deck`, `evaluate_cards` / `is_straight`, observation encoders |
 
@@ -89,11 +126,11 @@ The observation has shape `(8 + num_players, 4, 12)`. Each plane is a 4 suits ×
 | 1 | Throne |
 | 2 | Own royal |
 | 3–7 | Track slots 0–4, in order |
-| 8 … 8+N−1 | Chips in for each player, starting with the observing player and going in turn order; a count of N fills the first N cells |
+| 8 … 8+N−1 | Chips left in each player's cup (any owner), starting with the observing player and going in turn order; a count of N fills the first N cells |
 
-Other players' royals and the discard pile are **not** encoded. The royal encoding is commented out in `rf.py`, ready for when royals matter. Changing the planes changes `state_shape`, so any saved model has to be retrained.
+Other players' royals, the discard pile and who owns the chips in each cup are **not** encoded. The royal encoding is commented out in `rf.py`, ready for when royals matter. Changing the planes changes `state_shape`, so any saved model has to be retrained.
 
-The raw state (`raw_obs`) also includes `seat_chips_in`, `royals`, `played_cards` and `legal_actions` as strings. `throne` is an `RFCard` object rather than a string.
+The raw state (`raw_obs`) also includes `seat_chips_out`, `royals`, `played_cards` and `legal_actions` as strings. `chips_out` lists the owner of each chip in the player's own cup. `throne` is an `RFCard` object rather than a string.
 
 ## Running
 
@@ -136,5 +173,5 @@ To check that a change doesn't affect gameplay, run seeded games (`set_seed(n)` 
 
 ## Planned changes
 
-- **Royals:** the throne and royals will affect the track and chips, to add strategy. With random play, about 97% of games are currently won by an Ace chip. When this lands, other players' royals will likely need to go into the observation.
+- **Queen effects:** see [Royal effects](#royal-effects). Kings are done. When this lands, other players' royals will likely need to go into the observation.
 - **Hands:** `hand`, `num_cards` and the hand printing in the human agent are placeholders. No cards are dealt.
