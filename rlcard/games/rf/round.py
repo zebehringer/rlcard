@@ -15,6 +15,11 @@ class RFRound:
         self.np_random = np_random
         self.dealer = dealer
         self.target = None
+        # QD extra card drawn this turn, and whether QD applies to the current player
+        self.extras = []
+        self.qd_turn = False
+        # 'draw' (QH choice), 'play' or 'keep' (QD choice of the card to hold)
+        self.phase = 'play'
         self.current_player = 0
         self.players = players
         self.played_cards = []
@@ -45,74 +50,188 @@ class RFRound:
         self.replace_deck()
         
     
-    def flip_top_card(self):
-        ''' Flip the top card of the card pile
+    def draw_card(self):
+        ''' Pop the top card of the deck, reshuffling the discard pile in when it runs out
+        '''
+        if not self.dealer.deck:
+            self.replace_deck()
+        return self.dealer.deck.pop()
+
+    def queens(self, pIdx):
+        ''' Return the suits of the queens that apply to a player: the throne's and their own.
+        There is one queen per suit, so the two are always different
+
+        Args:
+            pIdx (int): the player id
 
         Returns:
-            (object of RFCard): the top card in game
-
+            (list): queen suits
         '''
-        while True:
-            if not self.dealer.deck:
-                self.replace_deck()
-    
-            card = self.dealer.deck.pop()
-            self.target = card
+        suits = []
+        if self.throne.trait == 'q':
+            suits.append(self.throne.suit)
+        royal = self.players[pIdx].royal
+        if royal.trait == 'q':
+            suits.append(royal.suit)
+        return suits
 
+    def deposit(self, pIdx, count):
+        ''' Deposit chips for a player, applying QS (blocked) and QC (+1 each)
+
+        Args:
+            pIdx (int): the player depositing
+            count (int): the number of chips the deposit is worth before queens
+        '''
+        queens = self.queens(pIdx)
+        if 's' in queens:
+            return
+        if 'c' in queens:
+            count += 1
+        for _ in range(count):
+            self.players[pIdx].deposit_chip()
+
+    def can_draw_discard(self, pIdx):
+        ''' QH lets a player take the top of the discard pile instead of flipping,
+        when that card is not an action card
+        '''
+        return ('h' in self.queens(pIdx) and len(self.played_cards) > 0
+                and self.played_cards[-1].type != 'action')
+
+    def start_turn(self, offer_discard=True):
+        ''' Start the current player's turn: offer the discard pile (QH) or flip.
+        Skip and Ace are resolved here and pass the turn on.
+
+        Args:
+            offer_discard (bool): False when the current player already chose to flip
+        '''
+        self.target = None
+        self.extras = []
+        while True:
+            if offer_discard and self.can_draw_discard(self.current_player):
+                self.phase = 'draw'
+                return
+            offer_discard = True
+
+            card = self.draw_card()
             if card.type == 'action':
                 # other cards go to the pile once the player decides where they go
                 self.played_cards.append(card)
-                if card.trait == 's':
-                    # there does not seem to be a great way to visualize a skip :(
-                    #print('>> Player {} got skipped'.format(self.players[self.current_player].player_id))
-                    self.current_player = (self.current_player + 1) % len(self.players)
-                    continue
-                elif card.trait == 'a':
-                    # there does not seem to be a great way to visualize an ace :(
-                    if self.players[self.current_player].deposit_chip():
-                        #print('>> Player {} deposited 1 chip'.format(self.players[self.current_player].player_id))
-                        if self.check_winner():
-                            break
-                    self.current_player = (self.current_player + 1) % len(self.players)
-                    continue
-
+                if card.trait == 'a':
+                    self.deposit(self.current_player, 1)
+                    if self.check_winner():
+                        return
+                self.current_player = (self.current_player + 1) % len(self.players)
+                continue
+            self.target = card
             break
-        return card
+        self.begin_play()
+
+    def begin_play(self):
+        ''' The target is set. QD draws one extra card.
+        Action cards drawn as extras go to the discard pile without effect.
+        '''
+        self.extras = []
+        self.qd_turn = 'd' in self.queens(self.current_player)
+        while self.qd_turn and not self.extras:
+            card = self.draw_card()
+            if card.type == 'action':
+                self.played_cards.append(card)
+            else:
+                self.extras.append(card)
+        self.phase = 'play'
+
+    def candidates(self):
+        ''' The cards the current player can play: the target, QD extras and their held card
+        '''
+        cards = [self.target] if self.target is not None else []
+        return cards + self.extras + self.players[self.current_player].hand
+
+    def take_candidate(self, card_str):
+        ''' Remove a card from wherever it sits among the candidates and return it
+        '''
+        player = self.players[self.current_player]
+        if self.target is not None and self.target.str == card_str:
+            card, self.target = self.target, None
+            return card
+        for pile in (self.extras, player.hand):
+            for i, c in enumerate(pile):
+                if c.str == card_str:
+                    return pile.pop(i)
+        raise ValueError('{} is not playable'.format(card_str))
 
     def proceed_round(self, players, action):
-        ''' Call other Classes' functions to keep one round running
+        ''' Apply the current player's action
 
         Args:
-            player (object): object of RFPlayer
+            players (list): the RFPlayers
             action (str): string of legal action
         '''
+        player = self.players[self.current_player]
+        if action == 'draw_deck':
+            self.start_turn(offer_discard=False)
+            return
+        if action == 'draw_discard':
+            self.target = self.played_cards.pop()
+            self.begin_play()
+            return
+        if self.phase == 'keep':
+            kept = self.take_candidate(action[:3])
+            self.played_cards.extend(self.candidates())
+            self.target = None
+            self.extras = []
+            player.hand = [kept]
+            self.end_turn()
+            return
+
+        held = list(player.hand)
+        card = self.take_candidate(action[:3])
         if '_rt' in action:
             tIdx = int(action[6:])
             self.played_cards.append(self.track[tIdx])
-            self.track[tIdx] = self.target
+            self.track[tIdx] = card
 
             e = evaluate_cards(self.track)
             if e is not None and 'f' in e:
-                self.players[self.current_player].deposit_chip()
-                if 's' in e:
-                    self.players[self.current_player].deposit_chip()
+                self.deposit(self.current_player, 2 if 's' in e else 1)
         elif '_thr' in action:
             self.played_cards.append(self.throne)
-            self.throne = self.target
-            if self.target.trait == 'k':
-                self.apply_king(self.target.suit, None)
+            self.throne = card
+            if card.trait == 'k':
+                self.apply_king(card.suit, None)
         elif '_p' in action:
             pIdx = int(action[5:])
             self.played_cards.append(self.players[pIdx].royal)
-            self.players[pIdx].royal = self.target
-            if self.target.trait == 'k':
-                self.apply_king(self.target.suit, pIdx)
+            self.players[pIdx].royal = card
+            if card.trait == 'k':
+                self.apply_king(card.suit, pIdx)
         elif '_d' in action:
-            self.played_cards.append(self.target)
+            self.played_cards.append(card)
 
+        if self.check_winner():
+            return
+
+        leftover = self.candidates()
+        if self.qd_turn and len(leftover) > 1:
+            # QD: the player chooses which card to hold
+            self.phase = 'keep'
+            return
+        self.target = None
+        self.extras = []
+        if self.qd_turn:
+            # QD: the one card left is held
+            player.hand = leftover
+        else:
+            # without QD a player only keeps the card they were already holding
+            player.hand = [c for c in leftover if c in held]
+            self.played_cards.extend(c for c in leftover if c not in held)
+        self.end_turn()
+
+    def end_turn(self):
+        ''' Pass the turn on unless the game is over
+        '''
         if not self.check_winner():
             self.current_player = (self.current_player + 1) % len(self.players)
-            self.flip_top_card()
+            self.start_turn()
 
     def apply_king(self, suit, pIdx):
         ''' Apply the one-time effect of a king that was just placed
@@ -157,7 +276,8 @@ class RFRound:
 
         # KD in front of an opponent: the placer also moves one of their own chips
         # from that opponent's cup into the pot
-        if suit == 'd' and pIdx is not None and pIdx != placer:
+        # QS blocks this like any other deposit
+        if suit == 'd' and pIdx is not None and pIdx != placer and 's' not in self.queens(placer):
             players[placer].take_back_chip(players[pIdx], to_pot=True)
 
     def retrieve_chip(self, pIdx):
@@ -184,19 +304,21 @@ class RFRound:
         return self.is_over
 
     def get_legal_actions(self, players, player_id):
+        if self.phase == 'draw':
+            return ['draw_deck', 'draw_discard']
+        if self.phase == 'keep':
+            return [c.str+'_h' for c in self.candidates()]
         legal_actions = []
-        target = self.target
-        if target != None:
-            if target.type == 'wild' or target.type == 'number':
+        for card in self.candidates():
+            if card.type == 'wild' or card.type == 'number':
                 for tc in range(5):
-                    legal_actions.append(target.str+'_rt'+str(tc))
-                legal_actions.append(target.str+'_d')
-            elif target.type == 'royal':
-                legal_actions.append(target.str+'_thr')
+                    legal_actions.append(card.str+'_rt'+str(tc))
+                legal_actions.append(card.str+'_d')
+            elif card.type == 'royal':
+                legal_actions.append(card.str+'_thr')
                 for p in players:
-                    legal_actions.append(target.str+'_p'+str(p.player_id))
-                legal_actions.append(target.str+'_d')
-
+                    legal_actions.append(card.str+'_p'+str(p.player_id))
+                legal_actions.append(card.str+'_d')
         return legal_actions
 
     def get_state(self, players, player_id):
@@ -220,6 +342,9 @@ class RFRound:
         seats = [players[(player_id + i) % len(players)] for i in range(len(players))]
         state['seat_chips_out'] = [len(p.chips_out) for p in seats]
         state['target'] = '' if self.target == None else self.target.str
+        state['extras'] = cards2list(self.extras)
+        state['discard_top'] = self.played_cards[-1].str if self.played_cards else ''
+        state['phase'] = self.phase
         state['played_cards'] = cards2list(self.played_cards)
         state['legal_actions'] = self.get_legal_actions(players, player_id)
         state['num_cards'] = []

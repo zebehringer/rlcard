@@ -64,7 +64,7 @@ def _print_state(state, action_record):
         _print_action(pair[1])
         print('')
 
-    print('\n=============== Your Hand ===============')
+    print('\n============ Your Held Card =============')
     RFCard.print_cards(state['hand'])
     print('\n=============== Your Chips ==============')
     print('cup: {}, deposited: {}'.format(state['chips_out'],state['chips_in']))
@@ -86,8 +86,15 @@ def _print_state(state, action_record):
     #for i in range(state['num_players']):
     #    if i != state['current_player']:
     #        print('Player {} has {} cards.'.format(i, state['num_cards'][i]))
+    print('=============== Top Discard =============')
+    if state['discard_top']:
+        RFCard.print_cards(state['discard_top'])
     print('=============== Last Card ===============')
-    RFCard.print_cards(state['target'])
+    if state['target']:
+        RFCard.print_cards(state['target'])
+    if state['extras']:
+        print('============== Extra Cards ==============')
+        RFCard.print_cards(state['extras'])
     print('======== Actions You Can Choose =========')
     for i, action in enumerate(state['legal_actions']):
         print(str(i)+': ', end='')

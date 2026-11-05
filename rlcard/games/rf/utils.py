@@ -69,7 +69,7 @@ def encode_target(plane, target):
         target(str): string of target card
     '''
     target_info = target.split('-')
-    if target == 'a' or target == 's':
+    if target in ('', 'a', 's'):
         return plane
     suit = SUIT_MAP[target_info[1]]
     trait = TRAIT_MAP[target_info[0]]

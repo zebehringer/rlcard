@@ -23,21 +23,23 @@ Cards are written as `<trait>-<suit>`, for example `7-h`, `T-s`, `k-d` or `w-c`.
 - **Throne:** one royal.
 - **Each player:** one royal.
 
-Cards skipped during setup are shuffled back into the deck. Each player starts with their own 7 chips in their cup (`chips_out`). Depositing moves one of your own chips from your cup into the shared pot (`chips_in` records the chips you deposited). Every chip remembers its owner, and kings can move chips between cups. Player hands exist in the code but are never dealt.
+Cards skipped during setup are shuffled back into the deck. Each player starts with their own 7 chips in their cup (`chips_out`). Depositing moves one of your own chips from your cup into the shared pot (`chips_in` records the chips you deposited). Every chip remembers its owner, and kings can move chips between cups. No cards are dealt to players. A player can hold at most one card (`hand`), which only `q-d` gives them.
 
 ### A turn
 
-1. **Flip.** The top card becomes the `target`.
+1. **Draw.** With `q-h`, if the top discard is not an action card, the player first chooses `draw_discard` (it becomes the `target`) or `draw_deck` (flip). Otherwise the top card of the deck is flipped and becomes the `target`.
    - **Skip:** the current player loses their turn; play passes on and the game flips again.
    - **Ace:** the current player deposits a chip, play passes on, and the game flips again. If that empties their cup, the game ends immediately.
-2. **Decide.** The current player chooses what to do with the target:
+   - **`q-d`:** the player also draws one extra card. Action cards drawn this way go to the discard pile with no effect, and the player draws again.
+2. **Decide.** The current player plays one card: the target, an extra card, or their held card.
    - **Number or wild:** replace track slot 0–4, or discard.
    - **Royal:** replace the throne, replace any player's royal (including their own), or discard. Placing a king triggers its effect (see [Royal effects](#royal-effects)).
-3. **Score.** After a track replacement:
+3. **Hold.** With `q-d`, the player holds one of the cards they didn't play, choosing with `<card>_h` when more than one is left, and the rest are discarded. Without `q-d`, they keep the card they already held, and an unplayed target is discarded.
+4. **Score.** After a track replacement:
    - **Flush (all 5 the same suit):** deposit 1 chip.
    - **Straight flush:** deposit 2 chips.
    - **Plain straight:** nothing.
-4. **Win check.** A player with an empty cup wins. After a king the winner may not be the current player. If several cups empty at once, the highest seat wins (`judger.py` returns them in seat order and `check_winner` takes the last). Otherwise play passes to the next player and a new card is flipped.
+5. **Win check.** A player with an empty cup wins. After a king the winner may not be the current player. If several cups empty at once, the highest seat wins (`judger.py` returns them in seat order and `check_winner` takes the last). Otherwise play passes to the next player and a new card is flipped.
 
 Straights: wilds fill gaps (`2 3 w 5 6` counts), ranks can't repeat, and T sits above 9. A flush that stays on the track pays out again to every player who keeps it a flush. That's intended for now; the royal rules are expected to change it.
 
@@ -46,8 +48,6 @@ Straights: wilds fill gaps (`2 3 w 5 6` counts), ranks can't repeat, and T sits 
 **Players:** 2–5, default 4. Other counts raise a `ValueError` from `RFGame.configure()`.
 
 ### Royal effects
-
-> **Kings are implemented. Queens are not yet:** they can be placed but do nothing.
 
 Each of the 8 royals is placed either in front of a player or on the throne, where it applies to everyone. Kings have a one-time effect when placed. Queens have an ongoing effect while they stay in place. Royals dealt during setup have no effect.
 
@@ -75,12 +75,20 @@ How the code reads the king rules:
 | `q-d` | The player draws an extra card per turn but still plays only 1 and holds the other | Every player draws an extra card per turn but still plays only 1 and holds the other |
 | `q-h` | The player can draw the top card of the discard pile instead of the draw pile | Every player can draw the top card of the discard pile instead of the draw pile |
 
+How the code reads the queen rules:
+- A queen applies while it stays on the throne or in front of the player. There is one queen per suit, so the throne queen and a player's own queen are always different, and both apply. For example, `q-c` on the throne and `q-d` in front of a player give that player an extra card and +1 on each deposit.
+- `q-s` blocks every deposit: Aces, flushes, and the placer's deposit from `k-d`.
+- `q-c` adds 1 to each deposit on the player's turn, so an Ace deposits 2 and a straight flush deposits 3. It doesn't add to `k-d`'s deposit.
+- `q-d`: see steps 1 and 3 of [A turn](#a-turn). The held card stays playable on later turns, even after the queen is gone.
+- `q-h` isn't offered when the top discard is an action card or the discard pile is empty.
+
 Open questions:
 - **TODO:** Decide whether the player who draws a royal can put it in front of another player, or only in front of themselves. The code currently allows any player.
-- **TODO (after queens are implemented):** Decide whether a player can deposit other players' chips from their cup. For now only your own chips can be deposited, so other players' chips can only leave your cup through a king. In 2,000 random games none got stuck, but queens like `q-s` may change that. If other players' chips become depositable, also decide which chip goes first, since there's no action for choosing.
+- **TODO:** Decide whether a player can deposit other players' chips from their cup. For now only your own chips can be deposited, so other players' chips can only leave your cup through a king. With queens in, 2,000 random games still all finished (median 450 decisions with 4 players). If other players' chips become depositable, also decide which chip goes first, since there's no action for choosing.
 - Should a player choose which cup `k-d` takes from, and who `k-s` gives to? Both are random for now, because there are no actions for those choices.
 - Does a throne royal act on its own, or in combination with the state of the track?
 - With `q-d`, can the player play both cards instead of holding one?
+- Should a player be able to discard their held card, or swap it for the target without `q-d`?
 
 ## Code layout
 
@@ -88,8 +96,8 @@ Open questions:
 |---|---|
 | `card.py` | `RFCard` (type, suit, trait, cached `str`, `rank`) and the console printing used by the human agent |
 | `dealer.py` | Shuffles and deals from the deck |
-| `player.py` | Chips (`chips_out` = cup, `chips_in` = deposited, `deposit_chip`, `pick_chip_to_give`, `take_back_chip`), royal, an unused `hand` |
-| `round.py` | Setup, `flip_top_card` (Skip and Ace), `proceed_round` (applies an action), `apply_king` / `retrieve_chip`, `check_winner`, `get_state` |
+| `player.py` | Chips (`chips_out` = cup, `chips_in` = deposited, `deposit_chip`, `pick_chip_to_give`, `take_back_chip`), royal, held card (`hand`) |
+| `round.py` | Setup, `start_turn` (`q-h` choice, flip, Skip and Ace), `begin_play` (`q-d` extra card), `proceed_round` (applies an action), `queens` / `deposit`, `apply_king` / `retrieve_chip`, `check_winner`, `get_state` |
 | `judger.py` | Winner = any player with an empty cup |
 | `game.py` | `RFGame`: action space, `configure`, step and step back, payoffs, player limits |
 | `utils.py` | `init_deck`, `evaluate_cards` / `is_straight`, observation encoders |
@@ -103,7 +111,7 @@ There are no rf tests in `tests/`.
 
 ### Discard pile bookkeeping
 
-`played_cards` is the discard pile, and it's shuffled back in when the deck runs out. Only action cards go onto it when flipped. Every other card goes onto it once, in `proceed_round`, when it's discarded or replaced on the table. Adding a card in both places duplicates it on every reshuffle (this bug used to exist), so the deck, discard pile, track, throne, royals and the current non-action target must always add up to 52 cards.
+`played_cards` is the discard pile, and it's shuffled back in when the deck runs out. Only action cards go onto it when flipped. Every other card goes onto it once, in `proceed_round`, when it's discarded or replaced on the table. Action cards drawn by `q-d` go onto it when drawn, and leftover cards go onto it at the end of the turn. `draw_discard` takes its top card off. Adding a card in both places duplicates it on every reshuffle (this bug used to exist), so the deck, discard pile, track, throne, royals, held cards, the `q-d` extra card and the target must always add up to 52 cards.
 
 ## Actions
 
@@ -113,24 +121,29 @@ The action space is fixed for a given player count and built in `RFGame.init_act
 |---|---|
 | Number or wild | `<card>_rt0` … `<card>_rt4` (replace track slot), `<card>_d` (discard) |
 | Royal | `<card>_thr` (throne), `<card>_p0` … `<card>_p<N-1>` (player's royal), `<card>_d` |
+| Hold (`q-d`) | `<card>_h` for every non-action card |
+| Draw (`q-h`) | `draw_deck`, `draw_discard` |
 
-That gives 288 actions with 4 players (272 / 280 / 288 / 296 for 2–5 players). `game.action_ids` maps an action string to its ID. `proceed_round` parses the slot or player number from fixed positions in the string, which works because every card string is 3 characters long.
+The card in a play action can be the target, an extra card or the held card. `RFRound.phase` says which kind of action is legal: `draw`, `play` or `keep`. That gives 338 actions with 4 players (322 / 330 / 338 / 346 for 2–5 players). `game.action_ids` maps an action string to its ID. `proceed_round` parses the slot or player number from fixed positions in the string, which works because every card string is 3 characters long.
 
 ## Observation (`RFEnv._extract_state`)
 
-The observation has shape `(8 + num_players, 4, 12)`. Each plane is a 4 suits × 12 ranks grid (2–9, T, q, k, w):
+The observation has shape `(11 + num_players, 4, 12)`. Each plane is a 4 suits × 12 ranks grid (2–9, T, q, k, w):
 
 | Plane | Contents |
 |---|---|
-| 0 | Target (empty when the target is an action card) |
+| 0 | Target (empty before a `q-h` choice and once it's played) |
 | 1 | Throne |
 | 2 | Own royal |
 | 3–7 | Track slots 0–4, in order |
-| 8 … 8+N−1 | Chips left in each player's cup (any owner), starting with the observing player and going in turn order; a count of N fills the first N cells |
+| 8 | `q-d` extra card, until it's played |
+| 9 | Own held card |
+| 10 | Top of the discard pile (empty when it's an action card) |
+| 11 … 11+N−1 | Chips left in each player's cup (any owner), starting with the observing player and going in turn order; a count of N fills the first N cells |
 
-Other players' royals, the discard pile and who owns the chips in each cup are **not** encoded. The royal encoding is commented out in `rf.py`, ready for when royals matter. Changing the planes changes `state_shape`, so any saved model has to be retrained.
+Other players' royals and held cards, the rest of the discard pile and who owns the chips in each cup are **not** encoded. The royal encoding is commented out in `rf.py`, ready for when royals matter. Changing the planes changes `state_shape`, so any saved model has to be retrained.
 
-The raw state (`raw_obs`) also includes `seat_chips_out`, `royals`, `played_cards` and `legal_actions` as strings. `chips_out` lists the owner of each chip in the player's own cup. `throne` is an `RFCard` object rather than a string.
+The raw state (`raw_obs`) also includes `seat_chips_out`, `royals`, `hand`, `extras`, `discard_top`, `phase`, `played_cards` and `legal_actions` as strings. `chips_out` lists the owner of each chip in the player's own cup. `throne` is an `RFCard` object rather than a string.
 
 ## Running
 
@@ -173,5 +186,5 @@ To check that a change doesn't affect gameplay, run seeded games (`set_seed(n)` 
 
 ## Planned changes
 
-- **Queen effects:** see [Royal effects](#royal-effects). Kings are done. When this lands, other players' royals will likely need to go into the observation.
-- **Hands:** `hand`, `num_cards` and the hand printing in the human agent are placeholders. No cards are dealt.
+- **Observation:** with royals in effect, other players' royals (and maybe held cards) should probably go into the observation.
+- **Hands:** `num_cards` and the dealer's `deal_cards` are left over. Only `q-d` gives players a card to hold.

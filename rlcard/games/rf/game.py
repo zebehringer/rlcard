@@ -35,6 +35,11 @@ class RFGame:
                 for p in range(self.num_players):
                     action_space.append(card.str+'_p'+str(p))
                 action_space.append(card.str+'_d')
+        # QD: choose which card to hold; QH: take the top discard or flip
+        for card in self.cards:
+            if card.type != 'action':
+                action_space.append(card.str+'_h')
+        action_space += ['draw_deck', 'draw_discard']
         self.action_space = action_space
         self.action_ids = {action: i for i, action in enumerate(action_space)}
 
@@ -76,8 +81,8 @@ class RFGame:
         # Initialize a Round
         self.round = Round(self.dealer, self.players, self.np_random)
 
-        # flip and perform top card
-        self.round.flip_top_card()
+        # start the first turn
+        self.round.start_turn()
 
         player_id = self.round.current_player
         state = self.get_state(player_id)

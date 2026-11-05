@@ -38,14 +38,20 @@ class RFCard:
         if isinstance(actions, str):
             actions = [actions]
         for i, action in enumerate(actions):
-            if '_rt' in action:
-                print('Replace track card '+action[6:], end='')
+            if action == 'draw_deck':
+                print('Flip from the deck', end='')
+            elif action == 'draw_discard':
+                print('Take the top discard', end='')
+            elif action.endswith('_h'):
+                print('Hold '+action[:3], end='')
+            elif '_rt' in action:
+                print(action[:3]+': replace track card '+action[6:], end='')
             elif '_thr' in action:
-                print('Replace throne', end='')
+                print(action[:3]+': replace throne', end='')
             elif '_p' in action:
-                print('Replace player '+action[5:]+'\'s royal', end='')
+                print(action[:3]+': replace player '+action[5:]+'\'s royal', end='')
             elif '_d' in action:
-                print('Discard')
+                print(action[:3]+': discard', end='')
 
     @staticmethod
     def print_cards(cards):
