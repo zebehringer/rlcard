@@ -38,8 +38,6 @@ class RFEnv(Env):
             encode_target(obs[10], state['discard_top'])
         for i,count in enumerate(state['seat_chips_out']):
             encode_chips(obs[11+i], count)
-        #for i,player in enumerate(self.game.players):
-        #    encode_target(obs[8+self.num_players+i], player.royal.str)
 
         legal_action_id = self._get_legal_actions(state['legal_actions'])
         extracted_state = {

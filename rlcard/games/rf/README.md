@@ -141,7 +141,7 @@ The observation has shape `(11 + num_players, 4, 12)`. Each plane is a 4 suits �
 | 10 | Top of the discard pile (empty when it's an action card) |
 | 11 … 11+N−1 | Chips left in each player's cup (any owner), starting with the observing player and going in turn order; a count of N fills the first N cells |
 
-Other players' royals and held cards, the rest of the discard pile and who owns the chips in each cup are **not** encoded. The royal encoding is commented out in `rf.py`, ready for when royals matter. Changing the planes changes `state_shape`, so any saved model has to be retrained.
+Other players' royals and held cards, the rest of the discard pile and who owns the chips in each cup are **not** encoded (see [Planned changes](#planned-changes)). Changing the planes changes `state_shape`, so any saved model has to be retrained.
 
 The raw state (`raw_obs`) also includes `seat_chips_out`, `royals`, `hand`, `extras`, `discard_top`, `phase`, `played_cards` and `legal_actions` as strings. `chips_out` lists the owner of each chip in the player's own cup. `throne` is an `RFCard` object rather than a string.
 
