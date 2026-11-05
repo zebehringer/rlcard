@@ -188,3 +188,4 @@ To check that a change doesn't affect gameplay, run seeded games (`set_seed(n)` 
 
 - **Observation:** with royals in effect, other players' royals (and maybe held cards) should probably go into the observation.
 - **Hands:** `num_cards` and the dealer's `deal_cards` are left over. Only `q-d` gives players a card to hold.
+- **TODO: special cards in place of the Ts.** Consider replacing some or all of the `T` cards with special cards, such as a "jack squat" (effect to be decided). This would remove the top straight rank (`6 7 8 9 T`), and a special card needs its own 3-character string and actions.
