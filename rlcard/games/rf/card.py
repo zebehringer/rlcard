@@ -1,11 +1,19 @@
 from termcolor import colored
 from rlcard.utils.utils import print_card
 
+def split_action(action):
+    ''' Split a card action into the card string and where it goes,
+    for example 'k-s_p2' -> ('k-s', 'p2') and 'j_thr' -> ('j', 'thr')
+    '''
+    card, where = action.rsplit('_', 1)
+    return card, where
+
+
 class RFCard:
 
     info = {'type':  ['number', 'royal', 'action', 'wild'],
             'suit': ['s', 'd', 'h', 'c'],
-            'trait': ['2', '3', '4', '5', '6', '7', '8', '9', 'T', 'q', 'k', 'w', 's', 'a']
+            'trait': ['2', '3', '4', '5', '6', '7', '8', '9', 'T', 'q', 'k', 'w', 'j', 's', 'a']
             }
 
     def __init__(self, card_type, trait, suit = None):
@@ -40,18 +48,21 @@ class RFCard:
         for i, action in enumerate(actions):
             if action == 'draw_deck':
                 print('Flip from the deck', end='')
-            elif action == 'draw_discard':
+                continue
+            if action == 'draw_discard':
                 print('Take the top discard', end='')
-            elif action.endswith('_h'):
-                print('Hold '+action[:3], end='')
-            elif '_rt' in action:
-                print(action[:3]+': replace track card '+action[6:], end='')
-            elif '_thr' in action:
-                print(action[:3]+': replace throne', end='')
-            elif '_p' in action:
-                print(action[:3]+': replace player '+action[5:]+'\'s royal', end='')
-            elif '_d' in action:
-                print(action[:3]+': discard', end='')
+                continue
+            card, where = split_action(action)
+            if where == 'h':
+                print('Hold '+card, end='')
+            elif where.startswith('rt'):
+                print(card+': replace track card '+where[2:], end='')
+            elif where == 'thr':
+                print(card+': replace throne', end='')
+            elif where.startswith('p'):
+                print(card+': replace player '+where[1:]+'\'s royal', end='')
+            elif where == 'd':
+                print(card+': discard', end='')
 
     @staticmethod
     def print_cards(cards):
@@ -66,7 +77,9 @@ class RFCard:
             if card == 's':
                 print('---Skip---', end='')
             elif card == 'a':
-                print('---Ace in the hole---', end='')            
+                print('---Ace in the hole---', end='')
+            elif card == 'j':
+                print('---Jack---', end='')
             else:
                 trait, suit = card.split('-')
                 print_card((suit+trait).upper())

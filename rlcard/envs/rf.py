@@ -3,7 +3,7 @@ from collections import OrderedDict
 
 from rlcard.envs import Env
 from rlcard.games.rf import Game
-from rlcard.games.rf.utils import encode_target, encode_chips
+from rlcard.games.rf.utils import encode_target, encode_chips, NUM_TRAITS
 from rlcard.games.rf.utils import cards2list
 
 DEFAULT_GAME_CONFIG = {
@@ -20,11 +20,11 @@ class RFEnv(Env):
         # target, throne, own royal, 5 track slots, QD extras, held card, top discard,
         # then chips left in each player's cup by seat
         self.num_planes = 11 + self.num_players
-        self.state_shape = [[self.num_planes, 4, 12] for _ in range(self.num_players)]
+        self.state_shape = [[self.num_planes, 4, NUM_TRAITS] for _ in range(self.num_players)]
         self.action_shape = [None for _ in range(self.num_players)]
 
     def _extract_state(self, state):
-        obs = np.zeros((self.num_planes, 4, 12), dtype=int)
+        obs = np.zeros((self.num_planes, 4, NUM_TRAITS), dtype=int)
         encode_target(obs[0], state['target'])
         encode_target(obs[1], state['throne'].str)
         encode_target(obs[2], state['player_royal'])

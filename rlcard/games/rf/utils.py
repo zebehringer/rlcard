@@ -4,9 +4,13 @@ from rlcard.games.rf.card import RFCard as Card
 SUIT_MAP = {'s': 0, 'd': 1, 'h': 2, 'c': 3}
 
 # a map of trait to its index
+# the Jack has no suit, so it fills its whole column. Skip and Ace are never encoded
 TRAIT_MAP = {'2': 0, '3': 1, '4': 2, '5': 3, '6': 4, '7': 5,
              '8': 6, '9': 7, 'T': 8, 'q': 9, 'k': 10, 'w': 11,
-             'a': 12, 's': 13}
+             'j': 12}
+
+# the number of trait columns in an observation plane
+NUM_TRAITS = 13
 
 
 def init_deck():
@@ -15,9 +19,10 @@ def init_deck():
     deck = []
     card_info = Card.info
     deck.append(Card('action','s'))
-    deck.append(Card('action','s'))
     deck.append(Card('action','a'))
     deck.append(Card('action','a'))
+    # the Jack is placed like a royal and blocks deposits
+    deck.append(Card('royal','j'))
     for suit in card_info['suit']:
         # init number cards
         for num in range(2,10):
@@ -65,11 +70,14 @@ def encode_target(plane, target):
     ''' Encode target and preserve it into plane
 
     Args:
-        plane (array): 4*12 matrix for all playable cards
+        plane (array): 4*13 matrix for all playable cards
         target(str): string of target card
     '''
     target_info = target.split('-')
     if target in ('', 'a', 's'):
+        return plane
+    if target == 'j':
+        plane[:, TRAIT_MAP['j']] = 1
         return plane
     suit = SUIT_MAP[target_info[1]]
     trait = TRAIT_MAP[target_info[0]]
@@ -79,7 +87,7 @@ def encode_chips(plane, count):
     ''' Encode a chip count into plane by filling its first count cells
 
     Args:
-        plane (array): 4*12 matrix
+        plane (array): 4*13 matrix
         count (int): number of chips
     '''
     plane.flat[:count] = 1

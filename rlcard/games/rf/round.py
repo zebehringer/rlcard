@@ -1,4 +1,4 @@
-from rlcard.games.rf.card import RFCard as Card
+from rlcard.games.rf.card import RFCard as Card, split_action
 from rlcard.games.rf.judger import RFJudger as Judger
 from rlcard.games.rf.utils import cards2list, evaluate_cards
 
@@ -29,16 +29,17 @@ class RFRound:
         self.track = []
         self.deal_track()
         self.replace_deck()
+        # the throne and each player's spot get a royal: a king, queen or the Jack
         while True:
             card = self.dealer.deck.pop()
-            if card.trait == 'k' or card.trait == 'q':
+            if card.type == 'royal':
                 self.throne = card
                 break
             self.played_cards.append(card)
         for p in players:
             while True:
                 card = self.dealer.deck.pop()
-                if card.trait == 'k' or card.trait == 'q':
+                if card.type == 'royal':
                     p.royal = card
                     break
                 self.played_cards.append(card)
@@ -81,17 +82,27 @@ class RFRound:
             suits.append(royal.suit)
         return suits
 
+    def jacked(self, pIdx):
+        ''' The Jack on the throne or in front of a player blocks their deposits
+        '''
+        return self.throne.trait == 'j' or self.players[pIdx].royal.trait == 'j'
+
+    def shielded(self, pIdx):
+        ''' QS in front of a player shields them from kings
+        '''
+        royal = self.players[pIdx].royal
+        return royal.trait == 'q' and royal.suit == 's'
+
     def deposit(self, pIdx, count):
-        ''' Deposit chips for a player, applying QS (blocked) and QC (+1 each)
+        ''' Deposit chips for a player, applying the Jack (blocked) and QC (+1 each)
 
         Args:
             pIdx (int): the player depositing
             count (int): the number of chips the deposit is worth before queens
         '''
-        queens = self.queens(pIdx)
-        if 's' in queens:
+        if self.jacked(pIdx):
             return
-        if 'c' in queens:
+        if 'c' in self.queens(pIdx):
             count += 1
         for _ in range(count):
             self.players[pIdx].deposit_chip()
@@ -181,7 +192,7 @@ class RFRound:
             self.begin_play()
             return
         if self.phase == 'keep':
-            kept = self.take_candidate(action[:3])
+            kept = self.take_candidate(split_action(action)[0])
             self.played_cards.extend(self.candidates())
             self.target = None
             self.extras = []
@@ -190,27 +201,30 @@ class RFRound:
             return
 
         held = list(player.hand)
-        card = self.take_candidate(action[:3])
-        if '_rt' in action:
-            tIdx = int(action[6:])
+        card_str, where = split_action(action)
+        card = self.take_candidate(card_str)
+        if where.startswith('rt'):
+            tIdx = int(where[2:])
             self.played_cards.append(self.track[tIdx])
             self.track[tIdx] = card
 
             e = evaluate_cards(self.track)
             if e is not None and 'f' in e:
                 self.deposit(self.current_player, 2 if 's' in e else 1)
-        elif '_thr' in action:
+        elif where == 'thr':
             self.played_cards.append(self.throne)
             self.throne = card
             if card.trait == 'k':
                 self.apply_king(card.suit, None)
-        elif '_p' in action:
-            pIdx = int(action[5:])
+        elif where.startswith('p'):
+            pIdx = int(where[1:])
+            # a QS knocked off by a king still shields the player from that king
+            was_shielded = self.shielded(pIdx)
             self.played_cards.append(self.players[pIdx].royal)
             self.players[pIdx].royal = card
-            if card.trait == 'k':
+            if card.trait == 'k' and not was_shielded:
                 self.apply_king(card.suit, pIdx)
-        elif '_d' in action:
+        elif where == 'd':
             self.played_cards.append(card)
 
         if self.check_winner():
@@ -249,19 +263,24 @@ class RFRound:
         players = self.players
         n = len(players)
         placer = self.current_player
+        # QS on the throne cancels kings placed in front of players
+        if pIdx is not None and self.throne.trait == 'q' and self.throne.suit == 's':
+            return
         if suit == 's' and pIdx is None:
             # shake-up: discard the track and deal a new one. The new track doesn't score
             self.played_cards.extend(self.track)
             self.track = []
             self.deal_track()
             return
-        # on the throne the effect applies to everyone; KD skips the player who placed it
+        # on the throne the effect applies to everyone; KD skips the player who placed it.
+        # Players shielded by QS are left out, and they don't receive chips either
         if pIdx is not None:
             affected = [pIdx]
         elif suit == 'd':
             affected = [i for i in range(n) if i != placer]
         else:
             affected = list(range(n))
+        affected = [i for i in affected if not self.shielded(i)]
 
         if suit == 'd':
             for i in affected:
@@ -270,13 +289,17 @@ class RFRound:
             gifts = []
             for i in affected:
                 if suit == 's':
-                    others = [j for j in range(n) if j != i]
+                    others = [j for j in range(n) if j != i and not self.shielded(j)]
+                    if not others:
+                        continue
                     to = others[self.np_random.randint(len(others))]
                 elif suit == 'c':
                     # play passes to the left, so the next player in turn order is on the left
                     to = (i + 1) % n
                 else:
                     to = (i - 1) % n
+                if self.shielded(to):
+                    continue
                 chip = players[i].pick_chip_to_give()
                 if chip is not None:
                     gifts.append((i, to, chip))
@@ -288,8 +311,8 @@ class RFRound:
 
         # KD in front of an opponent: the placer also moves one of their own chips
         # from that opponent's cup into the pot
-        # QS blocks this like any other deposit
-        if suit == 'd' and pIdx is not None and pIdx != placer and 's' not in self.queens(placer):
+        # the Jack blocks this like any other deposit
+        if suit == 'd' and pIdx is not None and pIdx != placer and not self.jacked(placer):
             players[placer].take_back_chip(players[pIdx], to_pot=True)
 
     def retrieve_chip(self, pIdx):
@@ -299,7 +322,9 @@ class RFRound:
             pIdx (int): the player retrieving a chip
         '''
         p = self.players[pIdx]
-        holders = [o for o in self.players if o is not p and p.player_id in o.chips_out]
+        # a cup shielded by QS can't be taken from
+        holders = [o for i, o in enumerate(self.players)
+                   if o is not p and p.player_id in o.chips_out and not self.shielded(i)]
         if holders:
             p.take_back_chip(holders[self.np_random.randint(len(holders))])
 

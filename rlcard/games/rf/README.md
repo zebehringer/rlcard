@@ -11,16 +11,16 @@ The game is a work in progress (see [Planned changes](#planned-changes)).
 | Group | Cards | Count |
 |---|---|---|
 | Number | 2–9 and T in each suit (`s`, `d`, `h`, `c`) | 36 |
-| Royal | `q` and `k` in each suit | 8 |
+| Royal | `q` and `k` in each suit, plus the Jack (`j`, no suit) | 9 |
 | Wild | one `w` per suit (wilds have a suit) | 4 |
-| Action | 2× Skip (`s`), 2× Ace in the hole (`a`), no suit | 4 |
+| Action | 1× Skip (`s`), 2× Ace in the hole (`a`), no suit | 3 |
 
-Cards are written as `<trait>-<suit>`, for example `7-h`, `T-s`, `k-d` or `w-c`. Action cards are just `s` or `a`.
+Cards are written as `<trait>-<suit>`, for example `7-h`, `T-s`, `k-d` or `w-c`. Action cards are just `s` or `a`, and the Jack is just `j`.
 
 ### Setup
 
 - **Track:** 5 cards, drawn until 5 number or wild cards come up.
-- **Throne:** one royal.
+- **Throne:** one royal (a king, a queen or the Jack).
 - **Each player:** one royal.
 
 Cards skipped during setup are shuffled back into the deck. Each player starts with their own 7 chips in their cup (`chips_out`). Depositing moves one of your own chips from your cup into the shared pot (`chips_in` records the chips you deposited). Every chip remembers its owner, and kings can move chips between cups. No cards are dealt to players. A player can hold at most one card (`hand`), which only `q-d` gives them.
@@ -49,7 +49,7 @@ Straights: wilds fill gaps (`2 3 w 5 6` counts), ranks can't repeat, and T sits 
 
 ### Royal effects
 
-Each of the 8 royals is placed either in front of a player or on the throne, where it applies to everyone. Kings have a one-time effect when placed. Queens have an ongoing effect while they stay in place. Royals dealt during setup have no effect.
+Each of the 9 royals (8 kings and queens, plus the Jack) is placed either in front of a player or on the throne, where it applies to everyone. Kings have a one-time effect when placed. Queens and the Jack have an ongoing effect while they stay in place. Kings dealt during setup have no effect.
 
 **Kings (one-time, `RFRound.apply_king`):**
 
@@ -71,17 +71,26 @@ How the code reads the king rules:
 
 | Card | In front of a player | On the throne |
 |---|---|---|
-| `q-s` | The player can't deposit chips | No one can deposit chips |
+| `q-s` | Kings don't affect the player | Kings placed in front of players have no effect |
 | `q-c` | The player can deposit 1 extra chip per turn | Every player can deposit 1 extra chip per turn |
 | `q-d` | The player draws an extra card per turn but still plays only 1 and holds the other | Every player draws an extra card per turn but still plays only 1 and holds the other |
 | `q-h` | The player can draw the top card of the discard pile instead of the draw pile | Every player can draw the top card of the discard pile instead of the draw pile |
 
 How the code reads the queen rules:
 - A queen applies while it stays on the throne or in front of the player. There is one queen per suit, so the throne queen and a player's own queen are always different, and both apply. For example, `q-c` on the throne and `q-d` in front of a player give that player an extra card and +1 on each deposit.
-- `q-s` blocks every deposit: Aces, flushes, and the placer's deposit from `k-d`.
+- `q-s` in front of a player shields them from every king. A king placed in front of them knocks the `q-s` off but has no effect. Throne kings skip them: with `k-c` or `k-h` they don't give, and a player whose chip would go to them keeps it. `k-s` never picks them as the random player. With `k-d`, they don't take a chip back, and no one can take a chip back out of their cup. A throne `k-s` (Shake-up) still changes the track.
+- `q-s` on the throne cancels every king placed in front of a player, including the `k-d` placer's deposit. Throne kings still apply.
 - `q-c` adds 1 to each deposit on the player's turn, so an Ace deposits 2 and a straight flush deposits 3. It doesn't add to `k-d`'s deposit.
 - `q-d`: see steps 1 and 3 of [A turn](#a-turn). The held card stays playable on later turns, even after the queen is gone.
 - `q-h` isn't offered when the top discard is an action card or the discard pile is empty.
+
+**The Jack (ongoing):**
+
+| Card | In front of a player | On the throne |
+|---|---|---|
+| `j` | The player can't deposit chips | No one can deposit chips |
+
+The Jack blocks every deposit: Aces, flushes, and the placer's deposit from `k-d`. It's placed like a royal (`j_thr`, `j_p<N>`, `j_d`, and `j_h` with `q-d`) and can be dealt to the throne or a player during setup.
 
 Open questions:
 - **TODO:** Decide whether the player who draws a royal can put it in front of another player, or only in front of themselves. The code currently allows any player.
@@ -98,7 +107,7 @@ Open questions:
 | `card.py` | `RFCard` (type, suit, trait, cached `str`, `rank`) and the console printing used by the human agent |
 | `dealer.py` | Shuffles and deals from the deck |
 | `player.py` | Chips (`chips_out` = cup, `chips_in` = deposited, `deposit_chip`, `pick_chip_to_give`, `take_back_chip`), royal, held card (`hand`) |
-| `round.py` | Setup, `start_turn` (`q-h` choice, flip, Skip and Ace), `begin_play` (`q-d` extra card), `proceed_round` (applies an action), `queens` / `deposit`, `apply_king` / `retrieve_chip`, `check_winner`, `get_state` |
+| `round.py` | Setup, `start_turn` (`q-h` choice, flip, Skip and Ace), `begin_play` (`q-d` extra card), `proceed_round` (applies an action), `queens` / `jacked` / `shielded` / `deposit`, `apply_king` / `retrieve_chip`, `check_winner`, `get_state` |
 | `judger.py` | `is_game_over` (any cup empty), `pot_chips` (each player's chips in the pot), `judge_winner` (most chips in the pot, ties go to the player who ended the game, then turn order) |
 | `game.py` | `RFGame`: action space, `configure`, step and step back, payoffs, player limits |
 | `utils.py` | `init_deck`, `evaluate_cards` / `is_straight`, observation encoders |
@@ -125,11 +134,11 @@ The action space is fixed for a given player count and built in `RFGame.init_act
 | Hold (`q-d`) | `<card>_h` for every non-action card |
 | Draw (`q-h`) | `draw_deck`, `draw_discard` |
 
-The card in a play action can be the target, an extra card or the held card. `RFRound.phase` says which kind of action is legal: `draw`, `play` or `keep`. That gives 338 actions with 4 players (322 / 330 / 338 / 346 for 2–5 players). `game.action_ids` maps an action string to its ID. `proceed_round` parses the slot or player number from fixed positions in the string, which works because every card string is 3 characters long.
+The card in a play action can be the target, an extra card or the held card. `RFRound.phase` says which kind of action is legal: `draw`, `play` or `keep`. That gives 345 actions with 4 players (327 / 336 / 345 / 354 for 2–5 players). `game.action_ids` maps an action string to its ID. `split_action` in `card.py` splits an action at its last `_` into the card and where it goes, so card strings can be any length (the Jack is `j`).
 
 ## Observation (`RFEnv._extract_state`)
 
-The observation has shape `(11 + num_players, 4, 12)`. Each plane is a 4 suits × 12 ranks grid (2–9, T, q, k, w):
+The observation has shape `(11 + num_players, 4, 13)`. Each plane is a 4 suits × 13 ranks grid (2–9, T, q, k, w, j). The Jack has no suit, so it fills all 4 cells of its column:
 
 | Plane | Contents |
 |---|---|
@@ -189,4 +198,4 @@ To check that a change doesn't affect gameplay, run seeded games (`set_seed(n)` 
 
 - **Observation:** with royals in effect, other players' royals (and maybe held cards) should probably go into the observation.
 - **Hands:** `num_cards` and the dealer's `deal_cards` are left over. Only `q-d` gives players a card to hold.
-- **TODO: special cards in place of the Ts.** Consider replacing some or all of the `T` cards with special cards, such as a "jack squat" (effect to be decided). This would remove the top straight rank (`6 7 8 9 T`), and a special card needs its own 3-character string and actions.
+- **TODO: special cards in place of the Ts.** Consider replacing some or all of the `T` cards with special cards, such as a "jack squat" (effect to be decided). This would remove the top straight rank (`6 7 8 9 T`), and a special card needs its own string and actions.

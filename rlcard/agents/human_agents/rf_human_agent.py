@@ -75,13 +75,21 @@ def _print_state(state, action_record):
         cards.append((suit+trait).upper())
     print_card(cards)
     print('================ Throne =================')
-    print_card((state['throne'].suit+state['throne'].trait).upper())
+    if state['throne'].str == 'j':
+        RFCard.print_cards('j')
+        print('')
+    else:
+        print_card((state['throne'].suit+state['throne'].trait).upper())
     print('============ Player Royals ==============')
-    cards = []
-    for i in range(state['num_players']):
-        trait, suit = state['royals'][i].split('-')
-        cards.append((suit+trait).upper())
-    print_card(cards)
+    if 'j' in state['royals']:
+        # the Jack has no suit to draw, so list the royals as text
+        print('  '.join('P{}: {}'.format(i, r) for i, r in enumerate(state['royals'])))
+    else:
+        cards = []
+        for i in range(state['num_players']):
+            trait, suit = state['royals'][i].split('-')
+            cards.append((suit+trait).upper())
+        print_card(cards)
     #print('========== Players Card Number ==========')
     #for i in range(state['num_players']):
     #    if i != state['current_player']:
