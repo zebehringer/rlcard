@@ -27,13 +27,7 @@ class RFRound:
         # the player id of the winner, set when the game ends
         self.winner = None
         self.track = []
-        for i in range(5):
-            while True:
-                card = self.dealer.deck.pop()
-                if card.type == 'number' or card.type == 'wild':
-                    self.track.append(card)
-                    break
-                self.played_cards.append(card)
+        self.deal_track()
         self.replace_deck()
         while True:
             card = self.dealer.deck.pop()
@@ -51,6 +45,17 @@ class RFRound:
         self.replace_deck()
         
     
+    def deal_track(self):
+        ''' Deal 5 number or wild cards onto an empty track.
+        Other cards drawn on the way go to the discard pile with no effect
+        '''
+        while len(self.track) < 5:
+            card = self.draw_card()
+            if card.type == 'number' or card.type == 'wild':
+                self.track.append(card)
+            else:
+                self.played_cards.append(card)
+
     def draw_card(self):
         ''' Pop the top card of the deck, reshuffling the discard pile in when it runs out
         '''
@@ -244,6 +249,12 @@ class RFRound:
         players = self.players
         n = len(players)
         placer = self.current_player
+        if suit == 's' and pIdx is None:
+            # shake-up: discard the track and deal a new one. The new track doesn't score
+            self.played_cards.extend(self.track)
+            self.track = []
+            self.deal_track()
+            return
         # on the throne the effect applies to everyone; KD skips the player who placed it
         if pIdx is not None:
             affected = [pIdx]

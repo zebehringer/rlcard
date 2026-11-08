@@ -55,7 +55,7 @@ Each of the 8 royals is placed either in front of a player or on the throne, whe
 
 | Card | In front of a player | On the throne |
 |---|---|---|
-| `k-s` | The player gives a chip to a random player | Everyone gives a chip to a random player |
+| `k-s` | The player gives a chip to a random player | Shake-up: the 5 track cards are discarded and 5 new ones are dealt |
 | `k-c` | The player gives a chip to the player on their left | Everyone gives a chip to the player on their left |
 | `k-h` | The player gives a chip to the player on their right | Everyone gives a chip to the player on their right |
 | `k-d` | The player takes 1 of their chips out of any cup other than their own and returns it to theirs (nothing if they can't). If they place it on an opponent's spot, they can also take one of their chips from that opponent's cup and put it into the pot | Everyone else takes 1 of their chips out of any cup and returns it to their own (nothing if they can't) |
@@ -64,6 +64,7 @@ How the code reads the king rules:
 - "The player" is the one the king is placed in front of. On the throne, "everyone else" (`k-d`) means everyone except the player who placed it.
 - Giving a chip moves a chip from your cup into the other player's cup, so it brings the end of the game closer, but an own chip you give away can't count toward your score unless a `k-d` brings it back to your cup. Other players' chips go first, since you can't deposit them. With an empty cup you give nothing. On the throne, everyone gives at once, so a chip you just received can't be passed on.
 - Left is the next player in turn order and right is the previous one. A random player is never the giver themselves.
+- Shake-up deals the new track the same way setup does: cards are flipped until 5 are numbers or wilds, and the others go to the discard pile with no effect. The new track doesn't score, even if it's a flush; it only pays out after someone replaces a card. This is also how a flush that keeps paying out can be broken up.
 - `k-d` takes the chip back from a random cup that holds one, which is a penalty for whoever takes it back. In the opponent case, the placer's chip goes straight into the pot as a deposit. It is taken after the opponent's chip comes back.
 
 **Queens (ongoing):**
