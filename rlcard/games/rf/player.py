@@ -10,8 +10,8 @@ class RFPlayer:
         self.np_random = np_random
         self.player_id = player_id
         self.hand = []
-        # chips_out is the player's cup: their 7 chips start here, and a player
-        # with an empty cup wins. chips_in holds the chips they deposited into the pot.
+        # chips_out is the player's cup: their 7 chips start here, and the game ends
+        # when any cup is empty. chips_in holds the chips they deposited into the pot.
         self.chips_in = []
         self.chips_out = []
         for i in range(7):

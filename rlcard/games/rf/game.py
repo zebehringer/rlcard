@@ -144,10 +144,8 @@ class RFGame:
         Returns:
             (list): Each entry corresponds to the payoff of one player
         '''
-        # TODO revisit this
-        winner = self.round.winner
-        if winner is not None:
-            self.payoffs[winner] = 1
+        if self.round.winner is not None:
+            self.payoffs[self.round.winner] = 1
         return self.payoffs
 
     def get_legal_actions(self):

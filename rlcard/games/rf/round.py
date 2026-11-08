@@ -24,6 +24,7 @@ class RFRound:
         self.players = players
         self.played_cards = []
         self.is_over = False
+        # the player id of the winner, set when the game ends
         self.winner = None
         self.track = []
         for i in range(5):
@@ -292,14 +293,15 @@ class RFRound:
             p.take_back_chip(holders[self.np_random.randint(len(holders))])
 
     def check_winner(self):
-        ''' End the game if any player's cup is empty
+        ''' End the game if any player's cup is empty. The winner is the player with
+        the most chips of their color in the pot; ties go to the current player, who
+        ended the game, then to the next tied player in turn order
 
         Returns:
             (bool): True if the game is over
         '''
-        winners = Judger.judge_winner(self.players)
-        if len(winners) > 0:
-            self.winner = winners.pop()
+        if Judger.is_game_over(self.players):
+            self.winner = Judger.judge_winner(self.players, self.current_player)
             self.is_over = True
         return self.is_over
 

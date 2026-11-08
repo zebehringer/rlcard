@@ -1,6 +1,6 @@
 # RF
 
-RF is a custom card game added to RLCard. Players take turns flipping one shared card and deciding where it goes. Making the 5-card **track** a flush lets you deposit chips, and the **first player to empty their cup wins**.
+RF is a custom card game added to RLCard. Players take turns flipping one shared card and deciding where it goes. Making the 5-card **track** a flush lets you deposit chips, and the game ends when any player's cup is empty. The **player with the most chips of their color in the pot wins**.
 
 The game is a work in progress (see [Planned changes](#planned-changes)).
 
@@ -39,7 +39,7 @@ Cards skipped during setup are shuffled back into the deck. Each player starts w
    - **Flush (all 5 the same suit):** deposit 1 chip.
    - **Straight flush:** deposit 2 chips.
    - **Plain straight:** nothing.
-5. **Win check.** A player with an empty cup wins. After a king the winner may not be the current player. If several cups empty at once, the highest seat wins (`judger.py` returns them in seat order and `check_winner` takes the last). Otherwise play passes to the next player and a new card is flipped.
+5. **End check.** If any player's cup is empty (after a deposit or a king, and not necessarily the current player's), the game ends and the player with the most chips of their color in the pot wins. On a tie, the player who ended the game (the current player) wins if they are tied; otherwise the next tied player in turn order after them wins. Otherwise play passes to the next player and a new card is flipped.
 
 Straights: wilds fill gaps (`2 3 w 5 6` counts), ranks can't repeat, and T sits above 9. A flush that stays on the track pays out again to every player who keeps it a flush. That's intended for now; the royal rules are expected to change it.
 
@@ -62,7 +62,7 @@ Each of the 8 royals is placed either in front of a player or on the throne, whe
 
 How the code reads the king rules:
 - "The player" is the one the king is placed in front of. On the throne, "everyone else" (`k-d`) means everyone except the player who placed it.
-- Giving a chip moves a chip from your cup into the other player's cup, so it brings you closer to winning. Other players' chips go first, since you can't deposit them. With an empty cup you give nothing. On the throne, everyone gives at once, so a chip you just received can't be passed on.
+- Giving a chip moves a chip from your cup into the other player's cup, so it brings the end of the game closer, but an own chip you give away can't count toward your score unless a `k-d` brings it back to your cup. Other players' chips go first, since you can't deposit them. With an empty cup you give nothing. On the throne, everyone gives at once, so a chip you just received can't be passed on.
 - Left is the next player in turn order and right is the previous one. A random player is never the giver themselves.
 - `k-d` takes the chip back from a random cup that holds one, which is a penalty for whoever takes it back. In the opponent case, the placer's chip goes straight into the pot as a deposit. It is taken after the opponent's chip comes back.
 
@@ -98,7 +98,7 @@ Open questions:
 | `dealer.py` | Shuffles and deals from the deck |
 | `player.py` | Chips (`chips_out` = cup, `chips_in` = deposited, `deposit_chip`, `pick_chip_to_give`, `take_back_chip`), royal, held card (`hand`) |
 | `round.py` | Setup, `start_turn` (`q-h` choice, flip, Skip and Ace), `begin_play` (`q-d` extra card), `proceed_round` (applies an action), `queens` / `deposit`, `apply_king` / `retrieve_chip`, `check_winner`, `get_state` |
-| `judger.py` | Winner = any player with an empty cup |
+| `judger.py` | `is_game_over` (any cup empty), `pot_chips` (each player's chips in the pot), `judge_winner` (most chips in the pot, ties go to the player who ended the game, then turn order) |
 | `game.py` | `RFGame`: action space, `configure`, step and step back, payoffs, player limits |
 | `utils.py` | `init_deck`, `evaluate_cards` / `is_straight`, observation encoders |
 
