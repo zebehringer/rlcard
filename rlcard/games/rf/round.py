@@ -18,8 +18,16 @@ class RFRound:
         # QD extra card drawn this turn, and whether QD applies to the current player
         self.extras = []
         self.qd_turn = False
-        # 'draw' (QH choice), 'play' or 'keep' (QD choice of the card to hold)
+        # 'draw' (QH choice), 'play', 'keep' (QD choice of the card to hold)
+        # or 'retrieve' (KD choice of the cup to take a chip back from)
         self.phase = 'play'
+        # KD: players still to take a chip back, and the opponent whose cup the placer deposits from
+        self.retrievers = []
+        self.kd_deposit = None
+        # whose turn it is, while a KD retrieval hands the decision to someone else,
+        # and the card they were holding when they played
+        self.turn_player = 0
+        self.held = []
         self.current_player = 0
         self.players = players
         self.played_cards = []
@@ -199,8 +207,16 @@ class RFRound:
             player.hand = [kept]
             self.end_turn()
             return
+        if self.phase == 'retrieve':
+            # KD: the player taking a chip back chose the cup
+            holder = int(action[len('take_p'):])
+            player.take_back_chip(self.players[holder])
+            self.retrievers.pop(0)
+            self.next_retrieval()
+            return
 
-        held = list(player.hand)
+        self.turn_player = self.current_player
+        self.held = list(player.hand)
         card_str, where = split_action(action)
         card = self.take_candidate(card_str)
         if where.startswith('rt'):
@@ -226,6 +242,46 @@ class RFRound:
                 self.apply_king(card.suit, pIdx)
         elif where == 'd':
             self.played_cards.append(card)
+        self.next_retrieval()
+
+    def retrieval_cups(self, pIdx):
+        ''' The cups a player can take one of their chips back from with KD:
+        other players' cups that hold one, except cups shielded by QS
+        '''
+        return [i for i, o in enumerate(self.players)
+                if i != pIdx and pIdx in o.chips_out and not self.shielded(i)]
+
+    def next_retrieval(self):
+        ''' Work through the players waiting to take a chip back with KD. A player
+        with more than one cup to choose from decides (the 'retrieve' phase, even out of turn),
+        otherwise it happens on its own. Then play returns to the turn's player
+        '''
+        while self.retrievers:
+            i = self.retrievers[0]
+            cups = self.retrieval_cups(i)
+            if len(cups) > 1:
+                self.current_player = i
+                self.phase = 'retrieve'
+                return
+            if cups:
+                self.players[i].take_back_chip(self.players[cups[0]])
+            self.retrievers.pop(0)
+        self.current_player = self.turn_player
+        self.phase = 'play'
+        self.finish_play()
+
+    def finish_play(self):
+        ''' Finish the turn's play once any KD retrievals are done
+        '''
+        player = self.players[self.current_player]
+        held = self.held
+        if self.kd_deposit is not None:
+            # KD in front of an opponent: the placer also moves one of their own chips
+            # from that opponent's cup into the pot, after the opponent's chip comes back.
+            # The Jack blocks this like any other deposit
+            pIdx, self.kd_deposit = self.kd_deposit, None
+            if not self.jacked(self.current_player):
+                player.take_back_chip(self.players[pIdx], to_pot=True)
 
         if self.check_winner():
             return
@@ -283,8 +339,10 @@ class RFRound:
         affected = [i for i in affected if not self.shielded(i)]
 
         if suit == 'd':
-            for i in affected:
-                self.retrieve_chip(i)
+            # each player takes a chip back in turn order, starting after the placer
+            self.retrievers = sorted(affected, key=lambda i: (i - placer) % n)
+            if pIdx is not None and pIdx != placer:
+                self.kd_deposit = pIdx
         else:
             gifts = []
             for i in affected:
@@ -309,25 +367,6 @@ class RFRound:
             for i, to, chip in gifts:
                 players[to].chips_out.append(chip)
 
-        # KD in front of an opponent: the placer also moves one of their own chips
-        # from that opponent's cup into the pot
-        # the Jack blocks this like any other deposit
-        if suit == 'd' and pIdx is not None and pIdx != placer and not self.jacked(placer):
-            players[placer].take_back_chip(players[pIdx], to_pot=True)
-
-    def retrieve_chip(self, pIdx):
-        ''' Return one of a player's chips from a random other cup to their own cup
-
-        Args:
-            pIdx (int): the player retrieving a chip
-        '''
-        p = self.players[pIdx]
-        # a cup shielded by QS can't be taken from
-        holders = [o for i, o in enumerate(self.players)
-                   if o is not p and p.player_id in o.chips_out and not self.shielded(i)]
-        if holders:
-            p.take_back_chip(holders[self.np_random.randint(len(holders))])
-
     def check_winner(self):
         ''' End the game if any player's cup is empty. The winner is the player with
         the most chips of their color in the pot; ties go to the current player, who
@@ -346,6 +385,8 @@ class RFRound:
             return ['draw_deck', 'draw_discard']
         if self.phase == 'keep':
             return [c.str+'_h' for c in self.candidates()]
+        if self.phase == 'retrieve':
+            return ['take_p'+str(i) for i in self.retrieval_cups(self.current_player)]
         legal_actions = []
         for card in self.candidates():
             if card.type == 'wild' or card.type == 'number':
@@ -379,6 +420,8 @@ class RFRound:
         # chips left in every player's cup, starting with this player and going in turn order
         seats = [players[(player_id + i) % len(players)] for i in range(len(players))]
         state['seat_chips_out'] = [len(p.chips_out) for p in seats]
+        # this player's own chips in every player's cup, in the same seat order
+        state['seat_own_chips'] = [p.chips_out.count(player_id) for p in seats]
         state['target'] = '' if self.target == None else self.target.str
         state['extras'] = cards2list(self.extras)
         state['discard_top'] = self.played_cards[-1].str if self.played_cards else ''

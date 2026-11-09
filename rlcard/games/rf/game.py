@@ -40,6 +40,8 @@ class RFGame:
             if card.type != 'action':
                 action_space.append(card.str+'_h')
         action_space += ['draw_deck', 'draw_discard']
+        # KD: take a chip back from player N's cup
+        action_space += ['take_p'+str(p) for p in range(self.num_players)]
         self.action_space = action_space
         self.action_ids = {action: i for i, action in enumerate(action_space)}
 

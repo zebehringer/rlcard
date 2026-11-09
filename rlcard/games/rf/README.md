@@ -65,7 +65,7 @@ How the code reads the king rules:
 - Giving a chip moves a chip from your cup into the other player's cup, so it brings the end of the game closer, but an own chip you give away can't count toward your score unless a `k-d` brings it back to your cup. Other players' chips go first, since you can't deposit them. With an empty cup you give nothing. On the throne, everyone gives at once, so a chip you just received can't be passed on.
 - Left is the next player in turn order and right is the previous one. A random player is never the giver themselves.
 - Shake-up deals the new track the same way setup does: cards are flipped until 5 are numbers or wilds, and the others go to the discard pile with no effect. The new track doesn't score, even if it's a flush; it only pays out after someone replaces a card. This is also how a flush that keeps paying out can be broken up.
-- `k-d` takes the chip back from a random cup that holds one, which is a penalty for whoever takes it back. In the opponent case, the placer's chip goes straight into the pot as a deposit. It is taken after the opponent's chip comes back.
+- With `k-d`, the player taking a chip back chooses which other player's cup it comes from (`take_p<N>`), even when it isn't their turn. On the throne, everyone else takes theirs in turn order, starting after the placer, and each sees the earlier choices. The choice is only offered when more than one cup holds one of their chips; with exactly one it happens automatically. In the opponent case, the placer's chip goes straight into the pot as a deposit. It is taken after the opponent's chip comes back.
 
 **Queens (ongoing):**
 
@@ -93,9 +93,9 @@ How the code reads the queen rules:
 The Jack blocks every deposit: Aces, flushes, and the placer's deposit from `k-d`. It's placed like a royal (`j_thr`, `j_p<N>`, `j_d`, and `j_h` with `q-d`) and can be dealt to the throne or a player during setup.
 
 Open questions:
-- **TODO:** Decide whether the player who draws a royal can put it in front of another player, or only in front of themselves. The code currently allows any player.
-- **TODO:** Decide whether a player can deposit other players' chips from their cup. For now only your own chips can be deposited, so other players' chips can only leave your cup through a king. With queens in, 2,000 random games still all finished (median 450 decisions with 4 players). If other players' chips become depositable, also decide which chip goes first, since there's no action for choosing.
-- Should a player choose which cup `k-d` takes from, and who `k-s` gives to? Both are random for now, because there are no actions for those choices.
+- **Resolved: royals can be placed in front of any player.** We tested a variant that allows only yourself or the throne, with 3,000 four-player games per matchup. Random games ran about 11% longer under the restriction (median 492 decisions vs 444). Scripted agents shared the same greedy track play and differed only in where they put royals. Placing the Jack and `k-d` on the pot leader won about 4 points more than the same agent restricted to itself or the throne (28.2% vs 23.9% per seat), the strongest placement effect measured. Self-placement beat the throne by only about 2 points under either rule, which is close to noise, and discarding royals was worst. We kept the current rule so that opponent placement stays a meaningful choice.
+- **Resolved: only your own chips can be deposited.** Other players' chips can leave your cup only through a king. Under the pot-count win rule, a foreign chip in your cup is dead weight that keeps your cup from emptying. With all royals in, every random game finished (2,000 per check). One state can stall a game: every cup holds exactly 1 chip, and it belongs to another player. No one can deposit, so only a king can end the game. Scripted agents ran into it only when they wouldn't play the king they held.
+- **Resolved: the player taking a chip back with `k-d` chooses the cup** (see the king notes above). Should a player also choose who a `k-s` in front of them makes them give to? That's still random.
 - Does a throne royal act on its own, or in combination with the state of the track?
 - With `q-d`, can the player play both cards instead of holding one?
 - Should a player be able to discard their held card, or swap it for the target without `q-d`?
@@ -107,7 +107,7 @@ Open questions:
 | `card.py` | `RFCard` (type, suit, trait, cached `str`, `rank`) and the console printing used by the human agent |
 | `dealer.py` | Shuffles and deals from the deck |
 | `player.py` | Chips (`chips_out` = cup, `chips_in` = deposited, `deposit_chip`, `pick_chip_to_give`, `take_back_chip`), royal, held card (`hand`) |
-| `round.py` | Setup, `start_turn` (`q-h` choice, flip, Skip and Ace), `begin_play` (`q-d` extra card), `proceed_round` (applies an action), `queens` / `jacked` / `shielded` / `deposit`, `apply_king` / `retrieve_chip`, `check_winner`, `get_state` |
+| `round.py` | Setup, `start_turn` (`q-h` choice, flip, Skip and Ace), `begin_play` (`q-d` extra card), `proceed_round` (applies an action), `queens` / `jacked` / `shielded` / `deposit`, `apply_king`, `next_retrieval` / `retrieval_cups` / `finish_play` (`k-d` cup choice), `check_winner`, `get_state` |
 | `judger.py` | `is_game_over` (any cup empty), `pot_chips` (each player's chips in the pot), `judge_winner` (most chips in the pot, ties go to the player who ended the game, then turn order) |
 | `game.py` | `RFGame`: action space, `configure`, step and step back, payoffs, player limits |
 | `utils.py` | `init_deck`, `evaluate_cards` / `is_straight`, observation encoders |
@@ -133,12 +133,13 @@ The action space is fixed for a given player count and built in `RFGame.init_act
 | Royal | `<card>_thr` (throne), `<card>_p0` … `<card>_p<N-1>` (player's royal), `<card>_d` |
 | Hold (`q-d`) | `<card>_h` for every non-action card |
 | Draw (`q-h`) | `draw_deck`, `draw_discard` |
+| Retrieve (`k-d`) | `take_p0` … `take_p<N-1>` (the cup to take a chip back from) |
 
-The card in a play action can be the target, an extra card or the held card. `RFRound.phase` says which kind of action is legal: `draw`, `play` or `keep`. That gives 345 actions with 4 players (327 / 336 / 345 / 354 for 2–5 players). `game.action_ids` maps an action string to its ID. `split_action` in `card.py` splits an action at its last `_` into the card and where it goes, so card strings can be any length (the Jack is `j`).
+The card in a play action can be the target, an extra card or the held card. `RFRound.phase` says which kind of action is legal: `draw`, `play`, `keep` or `retrieve`. During `retrieve`, `current_player` is the player taking a chip back, who may not be the player whose turn it is (`turn_player`). That gives 349 actions with 4 players (329 / 339 / 349 / 359 for 2–5 players). `game.action_ids` maps an action string to its ID. `split_action` in `card.py` splits an action at its last `_` into the card and where it goes, so card strings can be any length (the Jack is `j`).
 
 ## Observation (`RFEnv._extract_state`)
 
-The observation has shape `(11 + num_players, 4, 13)`. Each plane is a 4 suits × 13 ranks grid (2–9, T, q, k, w, j). The Jack has no suit, so it fills all 4 cells of its column:
+The observation has shape `(11 + 2 × num_players, 4, 13)`. Each plane is a 4 suits × 13 ranks grid (2–9, T, q, k, w, j). The Jack has no suit, so it fills all 4 cells of its column:
 
 | Plane | Contents |
 |---|---|
@@ -150,10 +151,11 @@ The observation has shape `(11 + num_players, 4, 13)`. Each plane is a 4 suits �
 | 9 | Own held card |
 | 10 | Top of the discard pile (empty when it's an action card) |
 | 11 … 11+N−1 | Chips left in each player's cup (any owner), starting with the observing player and going in turn order; a count of N fills the first N cells |
+| 11+N … 11+2N−1 | The observing player's own chips in each player's cup, in the same seat order |
 
-Other players' royals and held cards, the rest of the discard pile and who owns the chips in each cup are **not** encoded (see [Planned changes](#planned-changes)). Changing the planes changes `state_shape`, so any saved model has to be retrained.
+Other players' royals and held cards, the rest of the discard pile and who owns the other players' chips in each cup are **not** encoded (see [Planned changes](#planned-changes)). Changing the planes changes `state_shape`, so any saved model has to be retrained.
 
-The raw state (`raw_obs`) also includes `seat_chips_out`, `royals`, `hand`, `extras`, `discard_top`, `phase`, `played_cards` and `legal_actions` as strings. `chips_out` lists the owner of each chip in the player's own cup. `throne` is an `RFCard` object rather than a string.
+The raw state (`raw_obs`) also includes `seat_chips_out`, `seat_own_chips`, `royals`, `hand`, `extras`, `discard_top`, `phase`, `played_cards` and `legal_actions` as strings. `chips_out` lists the owner of each chip in the player's own cup. `throne` is an `RFCard` object rather than a string.
 
 ## Running
 

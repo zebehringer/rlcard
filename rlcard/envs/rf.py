@@ -18,8 +18,8 @@ class RFEnv(Env):
         self.game = Game()
         super().__init__(config)
         # target, throne, own royal, 5 track slots, QD extras, held card, top discard,
-        # then chips left in each player's cup by seat
-        self.num_planes = 11 + self.num_players
+        # then chips left in each player's cup by seat, then this player's own chips in each cup by seat
+        self.num_planes = 11 + 2 * self.num_players
         self.state_shape = [[self.num_planes, 4, NUM_TRAITS] for _ in range(self.num_players)]
         self.action_shape = [None for _ in range(self.num_players)]
 
@@ -38,6 +38,8 @@ class RFEnv(Env):
             encode_target(obs[10], state['discard_top'])
         for i,count in enumerate(state['seat_chips_out']):
             encode_chips(obs[11+i], count)
+        for i,count in enumerate(state['seat_own_chips']):
+            encode_chips(obs[11+self.num_players+i], count)
 
         legal_action_id = self._get_legal_actions(state['legal_actions'])
         extracted_state = {

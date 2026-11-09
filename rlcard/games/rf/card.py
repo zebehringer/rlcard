@@ -52,6 +52,9 @@ class RFCard:
             if action == 'draw_discard':
                 print('Take the top discard', end='')
                 continue
+            if action.startswith('take_p'):
+                print('Take a chip back from player '+action[len('take_p'):]+'\'s cup', end='')
+                continue
             card, where = split_action(action)
             if where == 'h':
                 print('Hold '+card, end='')
