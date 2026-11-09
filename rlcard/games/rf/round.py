@@ -226,7 +226,11 @@ class RFRound:
 
             e = evaluate_cards(self.track)
             if e is not None and 'f' in e:
-                self.deposit(self.current_player, 2 if 's' in e else 1)
+                count = 2 if 's' in e else 1
+                # a royal on the throne in the flush's suit adds 1 (the Jack has no suit)
+                if self.throne.suit == self.track[0].suit:
+                    count += 1
+                self.deposit(self.current_player, count)
         elif where == 'thr':
             self.played_cards.append(self.throne)
             self.throne = card

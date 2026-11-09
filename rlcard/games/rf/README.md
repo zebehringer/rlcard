@@ -39,6 +39,7 @@ Cards skipped during setup are shuffled back into the deck. Each player starts w
    - **Flush (all 5 the same suit):** deposit 1 chip.
    - **Straight flush:** deposit 2 chips.
    - **Plain straight:** nothing.
+   - **Throne match:** if the royal on the throne is the same suit as the flush, deposit 1 more chip. The Jack has no suit, so it never matches. This stacks with `q-c`, so a straight flush under a matching throne with `q-c` deposits 4.
 5. **End check.** If any player's cup is empty (after a deposit or a king, and not necessarily the current player's), the game ends and the player with the most chips of their color in the pot wins. On a tie, the player who ended the game (the current player) wins if they are tied; otherwise the next tied player in turn order after them wins. Otherwise play passes to the next player and a new card is flipped.
 
 Straights: wilds fill gaps (`2 3 w 5 6` counts), ranks can't repeat, and T sits above 9. A flush that stays on the track pays out again to every player who keeps it a flush. That's intended for now; the royal rules are expected to change it.
@@ -96,7 +97,7 @@ Open questions:
 - **Resolved: royals can be placed in front of any player.** We tested a variant that allows only yourself or the throne, with 3,000 four-player games per matchup. Random games ran about 11% longer under the restriction (median 492 decisions vs 444). Scripted agents shared the same greedy track play and differed only in where they put royals. Placing the Jack and `k-d` on the pot leader won about 4 points more than the same agent restricted to itself or the throne (28.2% vs 23.9% per seat), the strongest placement effect measured. Self-placement beat the throne by only about 2 points under either rule, which is close to noise, and discarding royals was worst. We kept the current rule so that opponent placement stays a meaningful choice.
 - **Resolved: only your own chips can be deposited.** Other players' chips can leave your cup only through a king. Under the pot-count win rule, a foreign chip in your cup is dead weight that keeps your cup from emptying. With all royals in, every random game finished (2,000 per check). One state can stall a game: every cup holds exactly 1 chip, and it belongs to another player. No one can deposit, so only a king can end the game. Scripted agents ran into it only when they wouldn't play the king they held.
 - **Resolved: the player taking a chip back with `k-d` chooses the cup** (see the king notes above). Should a player also choose who a `k-s` in front of them makes them give to? That's still random.
-- Does a throne royal act on its own, or in combination with the state of the track?
+- **Partly resolved:** a throne royal also combines with the track: one in the flush's suit adds 1 to the deposit. Should any royals have other suit-matching effects?
 - With `q-d`, can the player play both cards instead of holding one?
 - Should a player be able to discard their held card, or swap it for the target without `q-d`?
 
